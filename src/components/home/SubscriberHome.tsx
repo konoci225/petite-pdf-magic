@@ -1,8 +1,7 @@
-
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Tool, Clock } from "lucide-react";
+import { FileText, Wrench, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 
@@ -32,7 +31,7 @@ const SubscriberHome = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-lg font-medium">Outils Utilisés</CardTitle>
-            <Tool className="h-5 w-5 text-muted-foreground" />
+            <Wrench className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold">4</div>

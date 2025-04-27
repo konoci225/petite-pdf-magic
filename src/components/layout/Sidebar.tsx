@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
@@ -9,7 +8,7 @@ import {
   FileText,
   PieChart,
   Settings,
-  Tool,
+  Wrench,
   Star,
   Calendar,
   HelpCircle,
@@ -101,7 +100,7 @@ const Sidebar = () => {
     },
     {
       title: "Outils",
-      icon: Tool,
+      icon: Wrench,
       path: "/tools",
       roles: ["subscriber", "visitor"]
     },
@@ -125,7 +124,6 @@ const Sidebar = () => {
     },
   ];
 
-  // Filter menu items based on user role
   const filteredMenuItems = menuItems.filter(item => {
     if (!item.roles) return true;
     return role && item.roles.includes(role);
