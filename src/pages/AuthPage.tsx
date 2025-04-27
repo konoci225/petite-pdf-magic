@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/providers/AuthProvider";
 
 const AuthPage = () => {
   const [email, setEmail] = useState("");
@@ -14,6 +15,14 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,42 +67,14 @@ const AuthPage = () => {
 
       console.log("Authentication successful:", authData);
 
-      // Fetch user role after successful sign-in
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", authData.user.id)
-        .single();
-
-      if (roleError) {
-        console.error("Error fetching role:", roleError);
-        toast({
-          title: "Erreur",
-          description: "Impossible de récupérer votre rôle. Vous serez redirigé vers la page d'accueil.",
-          variant: "destructive",
-        });
-        navigate("/");
-        return;
-      }
-
-      console.log("User role:", roleData?.role);
-
-      // Redirection basée sur le rôle
-      switch (roleData?.role) {
-        case "super_admin":
-          navigate("/admin");
-          break;
-        case "subscriber":
-          navigate("/dashboard");
-          break;
-        default:
-          navigate("/");
-      }
-
+      // No need to manually fetch role here, the useUserRole hook will handle it
+      // Just redirect to home page, and role-based redirection will be handled there
       toast({
         title: "Connexion réussie",
         description: "Bienvenue sur votre espace personnel",
       });
+      
+      navigate("/");
     } catch (error: any) {
       toast({
         title: "Erreur de connexion",
@@ -110,8 +91,13 @@ const AuthPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <Card className="w-full max-w-md">
         <CardHeader>
+          <div className="flex justify-center mb-4">
+            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-pdf-primary to-pdf-secondary flex items-center justify-center">
+              <span className="text-white font-bold text-xl">P</span>
+            </div>
+          </div>
           <CardTitle className="text-center text-2xl font-bold">
-            Bienvenue sur PDF Tools
+            Bienvenue sur Petite PDF Magic
           </CardTitle>
         </CardHeader>
         <CardContent>

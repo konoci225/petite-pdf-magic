@@ -1,15 +1,11 @@
 
 import Layout from "@/components/layout/Layout";
-import Hero from "@/components/home/Hero";
-import ToolsGrid from "@/components/home/ToolsGrid";
-import Features from "@/components/home/Features";
+import HomeContent from "@/components/home/HomeContent";
 
 const Index = () => {
   return (
     <Layout>
-      <Hero />
-      <ToolsGrid />
-      <Features />
+      <HomeContent />
     </Layout>
   );
 };

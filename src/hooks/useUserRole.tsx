@@ -26,7 +26,7 @@ export const useUserRole = () => {
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
-          .maybeSingle(); // Use maybeSingle instead of single to handle cases where no role is found
+          .maybeSingle();
 
         if (error) {
           console.error("Erreur lors de la récupération du rôle:", error);
@@ -35,13 +35,13 @@ export const useUserRole = () => {
             description: "Impossible de récupérer votre rôle",
             variant: "destructive",
           });
-          setRole(null);
+          setRole("visitor"); // Default to visitor on error
         } else {
           setRole(data?.role || "visitor"); // Default to visitor if no role found
         }
       } catch (error) {
         console.error("Erreur lors de la récupération du rôle:", error);
-        setRole(null);
+        setRole("visitor"); // Default to visitor on error
       } finally {
         setIsLoading(false);
       }
