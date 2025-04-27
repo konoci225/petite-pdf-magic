@@ -58,11 +58,19 @@ const AuthPage = () => {
         .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
         .single();
 
+      // Redirection basée sur le rôle
       if (roleData?.role === "super_admin") {
         navigate("/admin");
+      } else if (roleData?.role === "subscriber") {
+        navigate("/dashboard");
       } else {
-        navigate("/");
+        navigate("/"); // Pour les visiteurs
       }
+
+      toast({
+        title: "Connexion réussie",
+        description: "Bienvenue sur votre espace personnel",
+      });
     } catch (error: any) {
       toast({
         title: "Erreur de connexion",

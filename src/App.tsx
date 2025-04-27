@@ -13,6 +13,7 @@ import CompressPage from "./pages/CompressPage";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
+import DashboardPage from "./pages/DashboardPage";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={["super_admin"]}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <DashboardPage />
                 </ProtectedRoute>
               }
             />
