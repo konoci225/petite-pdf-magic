@@ -72,13 +72,17 @@ export const UserManagement = () => {
         return;
       }
 
+      // Fix: Type the userData response correctly
       const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
       
       if (userError) throw userError;
 
-      // Combine the data
+      // Fix: Type check and safely access users property
+      const usersList = userData?.users || [];
+      
+      // Combine the data with proper type handling
       const combinedUsers = authUsers.map((authUser) => {
-        const userInfo = userData?.users.find(u => u.id === authUser.user_id);
+        const userInfo = usersList.find(u => u.id === authUser.user_id);
         return {
           id: authUser.user_id,
           email: userInfo?.email || "Unknown",
