@@ -28,7 +28,7 @@ const AuthPage = () => {
 
       toast({
         title: "Inscription réussie",
-        description: "Veuillez vérifier votre email pour confirmer votre compte.",
+        description: "Vérifiez votre email pour confirmer votre compte.",
       });
     } catch (error: any) {
       toast({
@@ -52,6 +52,7 @@ const AuthPage = () => {
 
       if (error) throw error;
 
+      // Fetch user role after successful sign-in
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
@@ -59,12 +60,15 @@ const AuthPage = () => {
         .single();
 
       // Redirection basée sur le rôle
-      if (roleData?.role === "super_admin") {
-        navigate("/admin");
-      } else if (roleData?.role === "subscriber") {
-        navigate("/dashboard");
-      } else {
-        navigate("/"); // Pour les visiteurs
+      switch (roleData?.role) {
+        case "super_admin":
+          navigate("/admin");
+          break;
+        case "subscriber":
+          navigate("/dashboard");
+          break;
+        default:
+          navigate("/");
       }
 
       toast({

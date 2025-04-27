@@ -23,11 +23,18 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     );
   }
 
+  // If no user is logged in, redirect to auth page
   if (!user) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  // If roles are specified and user's role is not in allowed roles, redirect to home
   if (allowedRoles && role && !allowedRoles.includes(role)) {
+    toast({
+      title: "Accès non autorisé",
+      description: "Vous n'avez pas les permissions requises.",
+      variant: "destructive"
+    });
     return <Navigate to="/" replace />;
   }
 
