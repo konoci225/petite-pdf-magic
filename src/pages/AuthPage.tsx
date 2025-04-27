@@ -52,7 +52,17 @@ const AuthPage = () => {
 
       if (error) throw error;
 
-      navigate("/");
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+        .single();
+
+      if (roleData?.role === "super_admin") {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     } catch (error: any) {
       toast({
         title: "Erreur de connexion",
