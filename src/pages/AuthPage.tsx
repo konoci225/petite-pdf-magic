@@ -30,6 +30,9 @@ const AuthPage = () => {
         title: "Inscription réussie",
         description: "Vérifiez votre email pour confirmer votre compte.",
       });
+      
+      // Automatically navigate to home page after successful signup
+      navigate("/");
     } catch (error: any) {
       toast({
         title: "Erreur lors de l'inscription",
