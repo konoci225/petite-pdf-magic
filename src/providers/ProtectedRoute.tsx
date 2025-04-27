@@ -4,6 +4,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -14,6 +15,7 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
   const { user } = useAuth();
   const { role, isLoading } = useUserRole();
   const location = useLocation();
+  const { toast } = useToast();
 
   if (isLoading) {
     return (
