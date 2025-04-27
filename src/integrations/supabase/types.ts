@@ -9,7 +9,190 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      actions: {
+        Row: {
+          action_type: string
+          created_at: string
+          file_id: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          file_id?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          file_id?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "actions_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      files: {
+        Row: {
+          created_at: string
+          expires_at: string
+          file_name: string
+          file_type: string
+          id: string
+          storage_path: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          file_name: string
+          file_type: string
+          id?: string
+          storage_path?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          file_name?: string
+          file_type?: string
+          id?: string
+          storage_path?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      modules: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_premium: boolean
+          module_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_premium?: boolean
+          module_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_premium?: boolean
+          module_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          is_super_admin: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          is_super_admin?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_super_admin?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          end_date: string | null
+          id: string
+          plan: string
+          start_date: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          end_date?: string | null
+          id?: string
+          plan: string
+          start_date?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          end_date?: string | null
+          id?: string
+          plan?: string
+          start_date?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_modules: {
+        Row: {
+          assigned_at: string
+          module_id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          module_id: string
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          module_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_modules_module_id_fkey"
+            columns: ["module_id"]
+            isOneToOne: false
+            referencedRelation: "modules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          assigned_at: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +201,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      app_role: "super_admin" | "subscriber" | "visitor"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +316,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["super_admin", "subscriber", "visitor"],
+    },
   },
 } as const

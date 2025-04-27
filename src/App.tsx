@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import MergePage from "./pages/MergePage";
 import SplitPage from "./pages/SplitPage";
 import CompressPage from "./pages/CompressPage";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +21,7 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<AuthPage />} />
           <Route path="/merge" element={<MergePage />} />
           <Route path="/split" element={<SplitPage />} />
           <Route path="/compress" element={<CompressPage />} />
