@@ -36,6 +36,7 @@ const AuthPage = () => {
         description: error.message,
         variant: "destructive",
       });
+      console.error("Signup error:", error);
     } finally {
       setLoading(false);
     }
@@ -45,19 +46,34 @@ const AuthPage = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
 
+      console.log("Authentication successful:", authData);
+
       // Fetch user role after successful sign-in
-      const { data: roleData } = await supabase
+      const { data: roleData, error: roleError } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+        .eq("user_id", authData.user.id)
         .single();
+
+      if (roleError) {
+        console.error("Error fetching role:", roleError);
+        toast({
+          title: "Erreur",
+          description: "Impossible de récupérer votre rôle. Vous serez redirigé vers la page d'accueil.",
+          variant: "destructive",
+        });
+        navigate("/");
+        return;
+      }
+
+      console.log("User role:", roleData?.role);
 
       // Redirection basée sur le rôle
       switch (roleData?.role) {
@@ -81,6 +97,7 @@ const AuthPage = () => {
         description: error.message,
         variant: "destructive",
       });
+      console.error("Login error:", error);
     } finally {
       setLoading(false);
     }
