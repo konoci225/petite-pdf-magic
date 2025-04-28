@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, Wrench, Clock, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { FileUploader } from "@/components/tools/FileUploader";
+import FileUploader from "@/components/tools/FileUploader";
 import { useToast } from "@/hooks/use-toast";
 
 const SubscriberHome = () => {

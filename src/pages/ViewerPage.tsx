@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import Layout from "@/components/layout/Layout";
-import { FileUploader } from "@/components/tools/FileUploader";
+import FileUploader from "@/components/tools/FileUploader";
 import { useToast } from "@/hooks/use-toast";
 import {
   Card,

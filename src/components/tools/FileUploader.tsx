@@ -5,22 +5,26 @@ import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface FileUploaderProps {
-  onFilesSelected: (files: File[]) => void;
+  onUploadComplete?: (files: File[]) => void;
+  onFilesSelected?: (files: File[]) => void;
   multiple?: boolean;
-  accept?: string;
+  acceptedFileTypes?: string[];
   maxFiles?: number;
   maxSize?: number; // in MB
 }
 
-const FileUploader = ({
+export const FileUploader = ({
+  onUploadComplete,
   onFilesSelected,
   multiple = false,
-  accept = ".pdf",
+  acceptedFileTypes = [".pdf"],
   maxFiles = 10,
   maxSize = 10
 }: FileUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
+  
+  const accept = acceptedFileTypes.join(",");
 
   const handleDragEnter = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -105,11 +109,16 @@ const FileUploader = ({
         const validFiles = validateFiles(droppedFiles);
         
         if (validFiles.length > 0) {
-          onFilesSelected(validFiles);
+          if (onFilesSelected) {
+            onFilesSelected(validFiles);
+          }
+          if (onUploadComplete) {
+            onUploadComplete(validFiles);
+          }
         }
       }
     },
-    [onFilesSelected, validateFiles]
+    [onFilesSelected, onUploadComplete, validateFiles]
   );
 
   const handleFileInputChange = useCallback(
@@ -119,27 +128,34 @@ const FileUploader = ({
         const validFiles = validateFiles(selectedFiles);
         
         if (validFiles.length > 0) {
-          onFilesSelected(validFiles);
+          if (onFilesSelected) {
+            onFilesSelected(validFiles);
+          }
+          if (onUploadComplete) {
+            onUploadComplete(validFiles);
+          }
         }
       }
       // Reset file input value to allow selecting the same files again
       e.target.value = "";
     },
-    [onFilesSelected, validateFiles]
+    [onFilesSelected, onUploadComplete, validateFiles]
   );
 
   return (
     <div
-      className={`file-drop-area ${isDragging ? "active" : ""}`}
+      className={`file-drop-area p-6 border-2 border-dashed rounded-lg ${
+        isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300"
+      }`}
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       <div className="text-center">
-        <Upload className="h-12 w-12 mx-auto text-pdf-primary mb-4" />
+        <Upload className="h-12 w-12 mx-auto text-primary mb-4" />
         <h3 className="text-lg font-medium mb-2">
-          Déposez vos fichiers PDF ici
+          Déposez vos fichiers ici
         </h3>
         <p className="text-gray-500 mb-4">
           ou

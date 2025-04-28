@@ -1,4 +1,3 @@
-
 import React from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -6,10 +5,11 @@ import { Navigate } from "react-router-dom";
 import { 
   FileText, 
   Scissors, 
-  Compress, 
-  FileSearch, 
-  Edit,
-  FileSignature
+  Compass, 
+  Eye, 
+  Upload, 
+  Download,
+  Lock 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -29,7 +29,6 @@ const PremiumToolsPage = () => {
   const { role, isLoading } = useUserRole();
   const navigate = useNavigate();
   
-  // Only allow subscribers and superadmins
   if (!isLoading && role !== "subscriber" && role !== "super_admin") {
     return <Navigate to="/subscription" />;
   }
@@ -53,21 +52,21 @@ const PremiumToolsPage = () => {
       id: "compress-pro",
       name: "Compression PDF Avancée",
       description: "Réduisez la taille de vos fichiers PDF avec des options de qualité personnalisables.",
-      icon: Compress,
+      icon: Compass,
       path: "/compress"
     },
     {
       id: "ocr",
       name: "OCR PDF",
       description: "Convertissez des images PDF en texte éditable et recherchable.",
-      icon: FileSearch,
+      icon: Eye,
       path: "/ocr"
     },
     {
       id: "edit",
       name: "Édition PDF",
       description: "Modifiez le texte et les images de vos documents PDF directement.",
-      icon: Edit,
+      icon: Upload,
       path: "/edit"
     },
     {
@@ -89,7 +88,7 @@ const PremiumToolsPage = () => {
       id: "password",
       name: "Protection par mot de passe",
       description: "Sécurisez vos PDF avec un mot de passe et des restrictions d'édition.",
-      icon: FileText,
+      icon: Lock,
       path: "/password",
       comingSoon: true
     }

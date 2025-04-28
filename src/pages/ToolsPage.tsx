@@ -1,11 +1,10 @@
-
 import React from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
 import { 
   FileText, 
   Scissors, 
-  Compress, 
+  Compass, 
   Eye, 
   Upload, 
   Download,
