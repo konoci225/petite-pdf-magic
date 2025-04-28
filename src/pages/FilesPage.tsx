@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -374,7 +373,9 @@ const FilesPage = () => {
                   <CardTitle className="text-lg">Croissance mensuelle</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">+{Math.max(1, (Number(totalStorage) * 0.1).toFixed(1))} MB</div>
+                  <div className="text-3xl font-bold">
+                    +{(Math.max(1, Number(totalStorage) * 0.1)).toFixed(1)} MB
+                  </div>
                   <p className="text-xs text-muted-foreground">
                     Estimation basée sur les 30 derniers jours
                   </p>
