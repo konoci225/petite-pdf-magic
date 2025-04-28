@@ -69,7 +69,7 @@ const MergePage = () => {
             <FileUploader
               onFilesSelected={handleFilesSelected}
               multiple={true}
-              accept=".pdf"
+              acceptedFileTypes={[".pdf"]}
             />
           ) : (
             <div className="bg-gray-50 p-6 rounded-lg border">

@@ -1,3 +1,4 @@
+
 import React from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -9,7 +10,8 @@ import {
   Eye, 
   Upload, 
   Download,
-  Lock 
+  Lock,
+  FileSignature
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";

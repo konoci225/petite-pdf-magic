@@ -80,7 +80,7 @@ const SplitPage = () => {
             <FileUploader
               onFilesSelected={handleFilesSelected}
               multiple={false}
-              accept=".pdf"
+              acceptedFileTypes={[".pdf"]}
             />
           ) : (
             <div className="bg-gray-50 p-6 rounded-lg border">

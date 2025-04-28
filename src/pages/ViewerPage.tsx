@@ -34,7 +34,7 @@ const ViewerPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const handleUploadComplete = (files: FileList) => {
+  const handleUploadComplete = (files: File[]) => {
     if (files && files.length > 0) {
       const file = files[0];
       

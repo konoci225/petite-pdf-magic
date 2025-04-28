@@ -13,7 +13,7 @@ interface FileUploaderProps {
   maxSize?: number; // in MB
 }
 
-export const FileUploader = ({
+const FileUploader = ({
   onUploadComplete,
   onFilesSelected,
   multiple = false,

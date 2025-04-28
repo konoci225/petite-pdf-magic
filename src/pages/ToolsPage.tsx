@@ -53,7 +53,7 @@ const ToolsPage = () => {
       id: "compress-basic",
       name: "Compression PDF (basique)",
       description: "Réduisez la taille de vos fichiers PDF avec une qualité basique.",
-      icon: Compress,
+      icon: Compass,
       path: "/compress",
       isPremium: false
     }
@@ -80,7 +80,7 @@ const ToolsPage = () => {
       id: "compress-pro",
       name: "Compression PDF Pro",
       description: "Réduisez la taille de vos fichiers PDF avec des options avancées.",
-      icon: Compress,
+      icon: Compass,
       path: "/compress",
       isPremium: true
     },
