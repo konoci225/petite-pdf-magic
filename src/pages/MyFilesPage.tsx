@@ -1,8 +1,8 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/providers/AuthProvider";
-import { FileText, Upload, Trash2 } from "lucide-react";
+import { FileText, Upload, Trash2, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,14 +15,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import FileUploader from "@/components/tools/FileUploader";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
 
 interface FileItem {
   id: string;
   file_name: string;
   file_type: string;
   created_at: string;
+  storage_path: string | null;
 }
 
 const MyFilesPage = () => {
@@ -32,18 +31,18 @@ const MyFilesPage = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchFiles = async () => {
+    if (!user) return;
+    
     setIsLoading(true);
     try {
-      if (user) {
-        const { data, error } = await supabase
-          .from("files")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("files")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-        if (error) throw error;
-        setFiles(data || []);
-      }
+      if (error) throw error;
+      setFiles(data || []);
     } catch (error: any) {
       toast({
         title: "Erreur",
@@ -56,12 +55,36 @@ const MyFilesPage = () => {
   };
 
   useEffect(() => {
-    fetchFiles();
+    if (user) {
+      fetchFiles();
+    }
   }, [user]);
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from("files").delete().eq("id", id);
+      // First get file info to find storage path
+      const { data: fileData, error: fileError } = await supabase
+        .from('files')
+        .select('storage_path')
+        .eq('id', id)
+        .single();
+      
+      if (fileError) throw fileError;
+      
+      // Delete from storage if path exists
+      if (fileData && fileData.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from('files')
+          .remove([fileData.storage_path]);
+        
+        if (storageError) throw storageError;
+      }
+      
+      // Delete record from database
+      const { error } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', id);
       
       if (error) throw error;
       
@@ -81,12 +104,96 @@ const MyFilesPage = () => {
     }
   };
 
-  const handleUploadComplete = () => {
-    fetchFiles();
-    toast({
-      title: "Chargement réussi",
-      description: "Votre fichier a été chargé avec succès",
-    });
+  const handleUpload = async (selectedFiles: File[]) => {
+    if (!user || selectedFiles.length === 0) return;
+    
+    try {
+      for (const file of selectedFiles) {
+        // Generate unique file path
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+        
+        // Upload to storage
+        const { error: uploadError } = await supabase.storage
+          .from('files')
+          .upload(filePath, file);
+        
+        if (uploadError) throw uploadError;
+        
+        // Create database record
+        const { error: dbError } = await supabase
+          .from('files')
+          .insert([
+            {
+              file_name: file.name,
+              file_type: fileExt,
+              user_id: user.id,
+              storage_path: filePath
+            }
+          ]);
+        
+        if (dbError) throw dbError;
+      }
+      
+      toast({
+        title: "Chargement réussi",
+        description: `${selectedFiles.length} fichier(s) ont été chargés avec succès`,
+      });
+      
+      // Refresh files list
+      fetchFiles();
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de télécharger le(s) fichier(s): " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDownload = async (id: string, fileName: string) => {
+    try {
+      // Get file info to find storage path
+      const { data: fileData, error: fileError } = await supabase
+        .from('files')
+        .select('storage_path')
+        .eq('id', id)
+        .single();
+      
+      if (fileError) throw fileError;
+      
+      if (!fileData?.storage_path) {
+        throw new Error("Chemin de fichier introuvable");
+      }
+      
+      // Download file
+      const { data, error } = await supabase.storage
+        .from('files')
+        .download(fileData.storage_path);
+      
+      if (error) throw error;
+      
+      // Create download link
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      toast({
+        title: "Téléchargement démarré",
+        description: "Votre fichier a été téléchargé avec succès",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de télécharger le fichier: " + error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -99,6 +206,18 @@ const MyFilesPage = () => {
       minute: '2-digit'
     }).format(date);
   };
+
+  if (!user) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold">Veuillez vous connecter pour accéder à vos fichiers</h2>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -128,14 +247,19 @@ const MyFilesPage = () => {
                     </CardHeader>
                     <CardContent>
                       <p className="text-sm text-muted-foreground">
-                        Type: {file.file_type}
+                        Type: {file.file_type.toUpperCase()}
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">
                         Créé le: {formatDate(file.created_at)}
                       </p>
                     </CardContent>
                     <CardFooter className="bg-slate-50 flex justify-between">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleDownload(file.id, file.file_name)}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
                         Télécharger
                       </Button>
                       <Button 
@@ -169,7 +293,7 @@ const MyFilesPage = () => {
               </CardHeader>
               <CardContent>
                 <FileUploader 
-                  onUploadComplete={handleUploadComplete} 
+                  onFilesSelected={handleUpload}
                   maxFiles={5}
                   acceptedFileTypes={[".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"]}
                 />

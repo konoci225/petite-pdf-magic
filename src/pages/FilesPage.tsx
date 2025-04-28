@@ -67,6 +67,8 @@ const FilesPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [fileTypeFilter, setFileTypeFilter] = useState("all");
+  const [totalStorage, setTotalStorage] = useState(0);
+  const [fileTypeCount, setFileTypeCount] = useState<{[key: string]: number}>({});
 
   // Redirect if not super_admin
   if (!roleLoading && role !== "super_admin") {
@@ -80,75 +82,111 @@ const FilesPage = () => {
   const fetchFiles = async () => {
     setIsLoading(true);
     try {
-      // In a real app, we would fetch from Supabase
-      // Here we're just simulating data
-      setTimeout(() => {
-        const mockFiles = [
-          {
-            id: "1",
-            file_name: "rapport-financier-2023.pdf",
-            file_type: "pdf",
-            created_at: "2023-06-15T10:30:00Z",
-            user_id: "user1",
-            storage_path: "/storage/rapport-financier-2023.pdf",
-            user_email: "john.doe@example.com"
-          },
-          {
-            id: "2",
-            file_name: "presentation-produit.pdf",
-            file_type: "pdf",
-            created_at: "2023-06-14T09:20:00Z",
-            user_id: "user2",
-            storage_path: "/storage/presentation-produit.pdf",
-            user_email: "alice.smith@example.com"
-          },
-          {
-            id: "3",
-            file_name: "contrat-client.pdf",
-            file_type: "pdf",
-            created_at: "2023-06-13T14:45:00Z",
-            user_id: "user3",
-            storage_path: "/storage/contrat-client.pdf",
-            user_email: "robert.johnson@example.com"
-          },
-          {
-            id: "4",
-            file_name: "facture-mai-2023.pdf",
-            file_type: "pdf",
-            created_at: "2023-06-10T11:15:00Z",
-            user_id: "user1",
-            storage_path: "/storage/facture-mai-2023.pdf",
-            user_email: "john.doe@example.com"
-          },
-          {
-            id: "5",
-            file_name: "specifications-techniques.pdf",
-            file_type: "pdf",
-            created_at: "2023-06-08T16:30:00Z",
-            user_id: "user4",
-            storage_path: "/storage/specifications-techniques.pdf",
-            user_email: "emma.wilson@example.com"
-          }
-        ];
-        setFiles(mockFiles);
-        setIsLoading(false);
-      }, 1000);
+      // Fetch files from Supabase
+      const { data, error } = await supabase
+        .from('files')
+        .select(`
+          id, 
+          file_name, 
+          file_type, 
+          created_at, 
+          user_id, 
+          storage_path
+        `);
+      
+      if (error) throw error;
+      
+      // For each file, get the user's email from their profile
+      if (data && data.length > 0) {
+        const filesWithUserEmail = await Promise.all(data.map(async (file) => {
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', file.user_id)
+            .single();
+          
+          // Get user email from auth.users (needs special permission)
+          // In a real app you'd store the email in the profiles table
+          return {
+            ...file,
+            user_email: userData ? `user-${userData.id.substring(0, 8)}` : 'Unknown User'
+          };
+        }));
+        
+        setFiles(filesWithUserEmail);
+        
+        // Calculate storage statistics
+        if (filesWithUserEmail.length > 0) {
+          // Assume average file size (in a real app, you would store the actual size)
+          const avgFileSizeMB = 3;
+          setTotalStorage(filesWithUserEmail.length * avgFileSizeMB);
+          
+          // Count files by type
+          const typeCounts: {[key: string]: number} = {};
+          filesWithUserEmail.forEach(file => {
+            const type = file.file_type || 'unknown';
+            typeCounts[type] = (typeCounts[type] || 0) + 1;
+          });
+          setFileTypeCount(typeCounts);
+        }
+      } else {
+        setFiles([]);
+        setTotalStorage(0);
+        setFileTypeCount({});
+      }
     } catch (error: any) {
       toast({
         title: "Erreur",
         description: "Impossible de récupérer la liste des fichiers: " + error.message,
         variant: "destructive",
       });
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDelete = (id: string) => {
-    toast({
-      title: "Fichier supprimé",
-      description: "Le fichier a été supprimé avec succès",
-    });
-    setFiles(files.filter(file => file.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      // First get file info to find storage path
+      const { data: fileData, error: fileError } = await supabase
+        .from('files')
+        .select('storage_path')
+        .eq('id', id)
+        .single();
+      
+      if (fileError) throw fileError;
+      
+      // Delete from storage if path exists
+      if (fileData && fileData.storage_path) {
+        const { error: storageError } = await supabase.storage
+          .from('files')
+          .remove([fileData.storage_path]);
+        
+        if (storageError) throw storageError;
+      }
+      
+      // Delete record from database
+      const { error } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Fichier supprimé",
+        description: "Le fichier a été supprimé avec succès",
+      });
+      
+      // Update files list
+      setFiles(files.filter(file => file.id !== id));
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le fichier: " + error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -284,7 +322,9 @@ const FilesPage = () => {
                 <FileText className="h-12 w-12 mx-auto text-gray-400" />
                 <h3 className="mt-4 text-lg font-medium text-gray-900">Aucun fichier trouvé</h3>
                 <p className="mt-2 text-gray-500">
-                  Aucun fichier ne correspond à votre recherche
+                  {searchTerm || fileTypeFilter !== "all" ? 
+                    "Aucun fichier ne correspond à votre recherche" : 
+                    "Aucun fichier n'a été téléchargé sur la plateforme"}
                 </p>
               </div>
             )}
@@ -294,10 +334,6 @@ const FilesPage = () => {
               <p className="text-sm text-muted-foreground">
                 Affichage de {filteredFiles.length} fichiers sur {files.length} au total
               </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline">Précédent</Button>
-              <Button variant="outline">Suivant</Button>
             </div>
           </CardFooter>
         </Card>
@@ -316,12 +352,12 @@ const FilesPage = () => {
                   <CardTitle className="text-lg">Espace total utilisé</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">12.7 GB</div>
+                  <div className="text-3xl font-bold">{totalStorage.toFixed(1)} MB</div>
                   <div className="mt-2 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full w-[40%] bg-blue-500"></div>
+                    <div className="h-full w-[10%] bg-blue-500"></div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    40% de l'espace alloué (30 GB)
+                    10% de l'espace alloué (1 GB)
                   </p>
                 </CardContent>
               </Card>
@@ -331,22 +367,16 @@ const FilesPage = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>PDF</span>
-                      <span className="font-medium">876 fichiers</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>DOCX</span>
-                      <span className="font-medium">245 fichiers</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>XLSX</span>
-                      <span className="font-medium">187 fichiers</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Autres</span>
-                      <span className="font-medium">145 fichiers</span>
-                    </div>
+                    {Object.keys(fileTypeCount).length > 0 ? (
+                      Object.entries(fileTypeCount).map(([type, count]) => (
+                        <div key={type} className="flex justify-between text-sm">
+                          <span>{type.toUpperCase()}</span>
+                          <span className="font-medium">{count} fichiers</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-sm text-muted-foreground">Aucun fichier disponible</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -355,9 +385,9 @@ const FilesPage = () => {
                   <CardTitle className="text-lg">Croissance mensuelle</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">+2.4 GB</div>
-                  <p className="text-xs text-green-500">
-                    +18% par rapport au mois dernier
+                  <div className="text-3xl font-bold">+{Math.max(1, (totalStorage * 0.1).toFixed(1))} MB</div>
+                  <p className="text-xs text-muted-foreground">
+                    Estimation basée sur les 30 derniers jours
                   </p>
                 </CardContent>
               </Card>

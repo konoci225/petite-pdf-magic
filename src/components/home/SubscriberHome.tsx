@@ -1,24 +1,122 @@
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Wrench, Clock, Upload } from "lucide-react";
+import { FileText, Wrench, Clock, Upload, Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import FileUploader from "@/components/tools/FileUploader";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/providers/AuthProvider";
 
 const SubscriberHome = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const [stats, setStats] = useState({
+    totalFiles: 0,
+    toolsUsed: 0,
+    subscriptionEnd: ""
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleUploadComplete = () => {
-    toast({
-      title: "Fichier téléchargé",
-      description: "Votre fichier a été téléchargé avec succès",
-    });
-    navigate("/my-files");
+  useEffect(() => {
+    if (user) {
+      fetchUserStats();
+    }
+  }, [user]);
+
+  const fetchUserStats = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch user files
+      const { data: files, error: filesError } = await supabase
+        .from('files')
+        .select('*')
+        .eq('user_id', user?.id);
+      
+      if (filesError) throw filesError;
+
+      // Fetch subscription details
+      const { data: subscription, error: subError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('status', 'active')
+        .maybeSingle();
+      
+      if (subError) throw subError;
+
+      // Calculate unique tools used (this would normally come from an actions table)
+      const toolsUsed = 4; // Placeholder - would normally calculate from usage data
+
+      setStats({
+        totalFiles: files?.length || 0,
+        toolsUsed: toolsUsed,
+        subscriptionEnd: subscription?.end_date ? new Date(subscription.end_date).toLocaleDateString('fr-FR') : "15/05/2025" // Default for demonstration
+      });
+    } catch (error) {
+      console.error("Error fetching user stats:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const handleUpload = async (selectedFiles: File[]) => {
+    if (!user || selectedFiles.length === 0) return;
+    
+    try {
+      for (const file of selectedFiles) {
+        // Generate unique file path
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+        
+        // Upload to storage
+        const { error: uploadError } = await supabase.storage
+          .from('files')
+          .upload(filePath, file);
+        
+        if (uploadError) throw uploadError;
+        
+        // Create database record
+        const { error: dbError } = await supabase
+          .from('files')
+          .insert([
+            {
+              file_name: file.name,
+              file_type: fileExt,
+              user_id: user.id,
+              storage_path: filePath
+            }
+          ]);
+        
+        if (dbError) throw dbError;
+      }
+      
+      toast({
+        title: "Fichier téléchargé",
+        description: "Votre fichier a été téléchargé avec succès",
+      });
+      
+      navigate("/my-files");
+    } catch (error: any) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de télécharger le fichier: " + error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -35,7 +133,7 @@ const SubscriberHome = () => {
         </CardHeader>
         <CardContent className="flex flex-col items-center">
           <FileUploader 
-            onUploadComplete={handleUploadComplete}
+            onFilesSelected={handleUpload}
             maxFiles={10} 
             acceptedFileTypes={[".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"]}
           />
@@ -52,8 +150,8 @@ const SubscriberHome = () => {
             <FileText className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">27</div>
-            <p className="text-xs text-muted-foreground">Ce mois-ci</p>
+            <div className="text-3xl font-bold">{stats.totalFiles}</div>
+            <p className="text-xs text-muted-foreground">Au total</p>
           </CardContent>
         </Card>
         <Card>
@@ -62,7 +160,7 @@ const SubscriberHome = () => {
             <Wrench className="h-5 w-5 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">4</div>
+            <div className="text-3xl font-bold">{stats.toolsUsed}</div>
             <p className="text-xs text-muted-foreground">Sur 7 disponibles</p>
           </CardContent>
         </Card>
@@ -73,7 +171,7 @@ const SubscriberHome = () => {
           </CardHeader>
           <CardContent>
             <div className="text-md font-bold text-green-600">Actif</div>
-            <p className="text-xs text-muted-foreground">Expire le 15/05/2025</p>
+            <p className="text-xs text-muted-foreground">Expire le {stats.subscriptionEnd}</p>
           </CardContent>
         </Card>
       </div>

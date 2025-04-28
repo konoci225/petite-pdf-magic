@@ -6,20 +6,38 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModuleManagement } from "@/components/admin/ModuleManagement";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { Loader2 } from "lucide-react";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Navigate } from "react-router-dom";
 
 const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
+  const { role, isLoading: roleLoading } = useUserRole();
 
   useEffect(() => {
-    // Simple timeout to simulate data loading
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
+    const checkAccess = async () => {
+      setIsLoading(true);
+      try {
+        // In a real app, you might check more detailed permissions here
+        setTimeout(() => {
+          setIsLoading(false);
+        }, 500);
+      } catch (error) {
+        console.error("Error checking admin access:", error);
+        setIsLoading(false);
+      }
+    };
+    
+    if (!roleLoading) {
+      checkAccess();
+    }
+  }, [roleLoading]);
 
-    return () => clearTimeout(timer);
-  }, []);
+  // Redirect if not super_admin
+  if (!roleLoading && role !== "super_admin") {
+    return <Navigate to="/dashboard" />;
+  }
 
-  if (isLoading) {
+  if (isLoading || roleLoading) {
     return (
       <Layout>
         <div className="container mx-auto py-8 flex items-center justify-center h-64">
@@ -52,8 +70,8 @@ const AdminDashboard = () => {
           <TabsContent value="subscriptions">
             <div className="bg-white shadow rounded-lg p-6">
               <h2 className="text-xl font-semibold mb-4">Gestion des abonnements</h2>
-              {/* TODO: Implement subscriptions management */}
-              <p className="text-gray-500">Fonctionnalité à venir.</p>
+              <p className="text-gray-500">Ajoutez, modifiez ou supprimez des abonnements utilisateur ici.</p>
+              <p className="text-gray-500 mt-4">Fonctionnalité à implémenter.</p>
             </div>
           </TabsContent>
         </Tabs>
