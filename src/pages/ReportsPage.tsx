@@ -1,44 +1,23 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Download,
-  BarChart,
-  PieChart,
-  Calendar,
-  Users,
-  FileText,
-  Filter,
-  RefreshCcw,
-  Loader2,
-} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Users, PieChart, FileText } from "lucide-react";
+import { StatsCards } from "@/components/reports/StatsCards";
+import { ReportCharts } from "@/components/reports/ReportCharts";
+import { DownloadableReports } from "@/components/reports/DownloadableReports";
+import { ReportFilters } from "@/components/reports/ReportFilters";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 const ReportsPage = () => {
   const { role, isLoading: roleLoading } = useUserRole();
   const { toast } = useToast();
   const [timeframe, setTimeframe] = useState("month");
-  const [generatingReport, setGeneratingReport] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalFiles: 0,
@@ -47,7 +26,6 @@ const ReportsPage = () => {
     fileGrowth: 0,
     subscriberGrowth: 0
   });
-  const [isLoading, setIsLoading] = useState(true);
 
   // Redirect if not super_admin
   if (!roleLoading && role !== "super_admin") {
@@ -61,7 +39,7 @@ const ReportsPage = () => {
   const fetchStats = async () => {
     setIsLoading(true);
     try {
-      // Fetch actual statistics from Supabase
+      // Fetch users with the updated get_user_role function
       const { data: users, error: usersError } = await supabase
         .from('profiles')
         .select('*');
@@ -102,54 +80,16 @@ const ReportsPage = () => {
     }
   };
 
-  const handleGenerateReport = (reportType: string) => {
-    setGeneratingReport(true);
-    
-    // In a real implementation, this would generate and download a report
-    setTimeout(() => {
-      setGeneratingReport(false);
-      toast({
-        title: "Rapport généré",
-        description: `Le rapport ${reportType} a été généré avec succès.`,
-      });
-    }, 1500);
-  };
-
   return (
     <Layout>
       <div className="container mx-auto py-8">
         <h1 className="text-3xl font-bold mb-6">Rapports et Statistiques</h1>
 
-        <div className="flex flex-wrap gap-4 mb-6 items-center justify-between">
-          <Select 
-            defaultValue={timeframe}
-            onValueChange={(value) => {
-              setTimeframe(value);
-            }}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sélectionner une période" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">7 derniers jours</SelectItem>
-              <SelectItem value="month">30 derniers jours</SelectItem>
-              <SelectItem value="quarter">3 derniers mois</SelectItem>
-              <SelectItem value="year">Année en cours</SelectItem>
-              <SelectItem value="all">Toutes les données</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Filtres
-            </Button>
-            <Button size="sm" variant="outline" onClick={fetchStats}>
-              <RefreshCcw className="h-4 w-4 mr-2" />
-              Actualiser
-            </Button>
-          </div>
-        </div>
+        <ReportFilters 
+          timeframe={timeframe}
+          onTimeframeChange={(value) => setTimeframe(value)}
+          onRefresh={fetchStats}
+        />
 
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
@@ -159,7 +99,7 @@ const ReportsPage = () => {
           <Tabs defaultValue="overview" className="w-full">
             <TabsList className="mb-6">
               <TabsTrigger value="overview">
-                <BarChart className="h-4 w-4 mr-2" />
+                <PieChart className="h-4 w-4 mr-2" />
                 Vue d'ensemble
               </TabsTrigger>
               <TabsTrigger value="users">
@@ -177,167 +117,25 @@ const ReportsPage = () => {
             </TabsList>
 
             <TabsContent value="overview">
-              <div className="grid gap-6 md:grid-cols-3">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-lg font-medium">Utilisateurs Totaux</CardTitle>
-                    <Users className="h-5 w-5 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">{stats.totalUsers}</div>
-                    {stats.newUserGrowth > 0 && (
-                      <p className="text-xs text-muted-foreground">+{stats.newUserGrowth}% depuis le mois dernier</p>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-lg font-medium">Fichiers Traités</CardTitle>
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">{stats.totalFiles}</div>
-                    {stats.fileGrowth > 0 && (
-                      <p className="text-xs text-muted-foreground">+{stats.fileGrowth}% depuis le mois dernier</p>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-lg font-medium">Abonnés Actifs</CardTitle>
-                    <Calendar className="h-5 w-5 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">{stats.activeSubscribers}</div>
-                    {stats.subscriberGrowth > 0 && (
-                      <p className="text-xs text-muted-foreground">+{stats.subscriberGrowth}% depuis le mois dernier</p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
+              <StatsCards 
+                totalUsers={stats.totalUsers}
+                totalFiles={stats.totalFiles}
+                activeSubscribers={stats.activeSubscribers}
+                newUserGrowth={stats.newUserGrowth}
+                fileGrowth={stats.fileGrowth}
+                subscriberGrowth={stats.subscriberGrowth}
+              />
 
-              <div className="grid gap-6 mt-6 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Évolution des utilisateurs</CardTitle>
-                    <CardDescription>Croissance des utilisateurs au fil du temps</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80 flex flex-col items-center justify-center bg-slate-50 rounded-md">
-                      {stats.totalUsers > 0 ? (
-                        <div className="text-center">
-                          <BarChart className="h-16 w-16 mx-auto text-slate-300 mb-2" />
-                          <p>Données disponibles pour {stats.totalUsers} utilisateurs</p>
-                          <p className="text-sm text-muted-foreground mt-2">Utilisez une bibliothèque de graphiques pour afficher ces données</p>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <p>Aucune donnée disponible</p>
-                          <p className="text-sm text-muted-foreground mt-2">Ajoutez des utilisateurs pour voir les statistiques</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Évolution des fichiers traités</CardTitle>
-                    <CardDescription>Nombre de fichiers traités par mois</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-80 flex flex-col items-center justify-center bg-slate-50 rounded-md">
-                      {stats.totalFiles > 0 ? (
-                        <div className="text-center">
-                          <BarChart className="h-16 w-16 mx-auto text-slate-300 mb-2" />
-                          <p>Données disponibles pour {stats.totalFiles} fichiers</p>
-                          <p className="text-sm text-muted-foreground mt-2">Utilisez une bibliothèque de graphiques pour afficher ces données</p>
-                        </div>
-                      ) : (
-                        <div className="text-center">
-                          <p>Aucune donnée disponible</p>
-                          <p className="text-sm text-muted-foreground mt-2">Ajoutez des fichiers pour voir les statistiques</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <ReportCharts 
+                totalUsers={stats.totalUsers}
+                totalFiles={stats.totalFiles}
+              />
 
-              <Card className="mt-6">
-                <CardHeader>
-                  <CardTitle>Rapports téléchargeables</CardTitle>
-                  <CardDescription>
-                    Générez et téléchargez des rapports détaillés pour une analyse approfondie
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 md:grid-cols-3">
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Rapport d'utilisateurs</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pb-2 text-sm text-muted-foreground">
-                      Données complètes sur les inscriptions, les conversions et les désabonnements.
-                    </CardContent>
-                    <CardFooter>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerateReport("d'utilisateurs")}
-                        disabled={generatingReport || stats.totalUsers === 0}
-                      >
-                        {generatingReport ? (
-                          <div className="flex items-center">
-                            <div className="animate-spin mr-2 h-4 w-4 border-2 border-b-transparent rounded-full" />
-                            Génération...
-                          </div>
-                        ) : (
-                          <>
-                            <Download className="h-4 w-4 mr-2" />
-                            Télécharger
-                          </>
-                        )}
-                      </Button>
-                    </CardFooter>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Rapport d'activité</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pb-2 text-sm text-muted-foreground">
-                      Utilisation des fonctionnalités, temps passé et actions effectuées.
-                    </CardContent>
-                    <CardFooter>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerateReport("d'activité")}
-                        disabled={generatingReport || stats.totalFiles === 0}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Télécharger
-                      </Button>
-                    </CardFooter>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">Rapport financier</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pb-2 text-sm text-muted-foreground">
-                      Revenus, abonnements et autres métriques financières clés.
-                    </CardContent>
-                    <CardFooter>
-                      <Button
-                        className="w-full"
-                        onClick={() => handleGenerateReport("financier")}
-                        disabled={generatingReport || stats.activeSubscribers === 0}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Télécharger
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                </CardContent>
-              </Card>
+              <DownloadableReports 
+                totalUsers={stats.totalUsers}
+                totalFiles={stats.totalFiles}
+                activeSubscribers={stats.activeSubscribers}
+              />
             </TabsContent>
 
             <TabsContent value="users">

@@ -3,7 +3,7 @@ import React from "react";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useToast } from "@/hooks/use-toast";
+import { useSettings } from "@/hooks/useSettings";
 import {
   Card,
   CardContent,
@@ -35,46 +35,50 @@ import {
   Lock, 
   FileText, 
   Save, 
-  Database 
+  Database,
+  Loader2
 } from "lucide-react";
 
 const SettingsPage = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
-  const { toast } = useToast();
+  const { settings, updateSettings, isLoading } = useSettings();
   const isSuperAdmin = role === "super_admin";
   
-  const [notificationSettings, setNotificationSettings] = React.useState({
-    emailNotifications: true,
-    pushNotifications: false,
-    weeklyDigest: true,
-    marketingEmails: false,
-  });
-  
-  const [displaySettings, setDisplaySettings] = React.useState({
-    language: "fr",
-    theme: "light",
-    fileDisplayMode: "list",
-  });
-  
-  const [securitySettings, setSecuritySettings] = React.useState({
-    twoFactorAuth: false,
-    sessionTimeout: "30",
-  });
-  
-  const handleNotificationChange = (key: string) => {
-    setNotificationSettings({
-      ...notificationSettings,
-      [key]: !notificationSettings[key as keyof typeof notificationSettings],
-    });
+  const handleNotificationChange = (key: keyof typeof settings) => {
+    updateSettings({ [key]: !settings[key] }, "de notification");
   };
   
-  const saveSettings = (type: string) => {
-    toast({
-      title: "Paramètres sauvegardés",
-      description: `Les paramètres ${type} ont été mis à jour avec succès.`,
-    });
+  const saveGeneralSettings = () => {
+    updateSettings({
+      theme: settings.theme,
+      language: settings.language,
+      fileDisplayMode: settings.fileDisplayMode
+    }, "généraux");
   };
+  
+  const saveSecuritySettings = () => {
+    updateSettings({
+      twoFactorAuth: settings.twoFactorAuth,
+      sessionTimeout: settings.sessionTimeout
+    }, "de sécurité");
+  };
+  
+  const saveSystemSettings = () => {
+    updateSettings({
+      // System settings would go here
+    }, "système");
+  };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-8 flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -101,8 +105,8 @@ const SettingsPage = () => {
                 <div className="space-y-2">
                   <Label htmlFor="language">Langue</Label>
                   <Select 
-                    value={displaySettings.language} 
-                    onValueChange={(value) => setDisplaySettings({...displaySettings, language: value})}
+                    value={settings.language} 
+                    onValueChange={(value) => updateSettings({ language: value })}
                   >
                     <SelectTrigger className="w-full sm:w-72">
                       <SelectValue placeholder="Sélectionnez une langue" />
@@ -122,25 +126,25 @@ const SettingsPage = () => {
                   <Label htmlFor="theme">Thème</Label>
                   <div className="flex items-center space-x-4">
                     <Button 
-                      variant={displaySettings.theme === "light" ? "default" : "outline"} 
+                      variant={settings.theme === "light" ? "default" : "outline"} 
                       className="flex items-center"
-                      onClick={() => setDisplaySettings({...displaySettings, theme: "light"})}
+                      onClick={() => updateSettings({ theme: "light" })}
                     >
                       <Sun className="h-4 w-4 mr-2" />
                       Clair
                     </Button>
                     <Button 
-                      variant={displaySettings.theme === "dark" ? "default" : "outline"} 
+                      variant={settings.theme === "dark" ? "default" : "outline"} 
                       className="flex items-center"
-                      onClick={() => setDisplaySettings({...displaySettings, theme: "dark"})}
+                      onClick={() => updateSettings({ theme: "dark" })}
                     >
                       <Moon className="h-4 w-4 mr-2" />
                       Sombre
                     </Button>
                     <Button 
-                      variant={displaySettings.theme === "system" ? "default" : "outline"} 
+                      variant={settings.theme === "system" ? "default" : "outline"} 
                       className="flex items-center"
-                      onClick={() => setDisplaySettings({...displaySettings, theme: "system"})}
+                      onClick={() => updateSettings({ theme: "system" })}
                     >
                       <Laptop className="h-4 w-4 mr-2" />
                       Système
@@ -154,16 +158,16 @@ const SettingsPage = () => {
                   <Label htmlFor="fileDisplayMode">Affichage des fichiers</Label>
                   <div className="flex items-center space-x-4">
                     <Button 
-                      variant={displaySettings.fileDisplayMode === "grid" ? "default" : "outline"} 
+                      variant={settings.fileDisplayMode === "grid" ? "default" : "outline"} 
                       className="flex items-center"
-                      onClick={() => setDisplaySettings({...displaySettings, fileDisplayMode: "grid"})}
+                      onClick={() => updateSettings({ fileDisplayMode: "grid" })}
                     >
                       Grille
                     </Button>
                     <Button 
-                      variant={displaySettings.fileDisplayMode === "list" ? "default" : "outline"} 
+                      variant={settings.fileDisplayMode === "list" ? "default" : "outline"} 
                       className="flex items-center"
-                      onClick={() => setDisplaySettings({...displaySettings, fileDisplayMode: "list"})}
+                      onClick={() => updateSettings({ fileDisplayMode: "list" })}
                     >
                       Liste
                     </Button>
@@ -171,7 +175,7 @@ const SettingsPage = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => saveSettings("généraux")}>
+                <Button onClick={saveGeneralSettings}>
                   <Save className="h-4 w-4 mr-2" />
                   Sauvegarder les paramètres
                 </Button>
@@ -196,7 +200,7 @@ const SettingsPage = () => {
                     </p>
                   </div>
                   <Switch
-                    checked={notificationSettings.emailNotifications}
+                    checked={settings.emailNotifications}
                     onCheckedChange={() => handleNotificationChange("emailNotifications")}
                   />
                 </div>
@@ -211,7 +215,7 @@ const SettingsPage = () => {
                     </p>
                   </div>
                   <Switch
-                    checked={notificationSettings.pushNotifications}
+                    checked={settings.pushNotifications}
                     onCheckedChange={() => handleNotificationChange("pushNotifications")}
                   />
                 </div>
@@ -226,7 +230,7 @@ const SettingsPage = () => {
                     </p>
                   </div>
                   <Switch
-                    checked={notificationSettings.weeklyDigest}
+                    checked={settings.weeklyDigest}
                     onCheckedChange={() => handleNotificationChange("weeklyDigest")}
                   />
                 </div>
@@ -241,13 +245,13 @@ const SettingsPage = () => {
                     </p>
                   </div>
                   <Switch
-                    checked={notificationSettings.marketingEmails}
+                    checked={settings.marketingEmails}
                     onCheckedChange={() => handleNotificationChange("marketingEmails")}
                   />
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => saveSettings("de notification")}>
+                <Button onClick={() => updateSettings(settings, "de notification")}>
                   <Save className="h-4 w-4 mr-2" />
                   Sauvegarder les paramètres
                 </Button>
@@ -272,10 +276,9 @@ const SettingsPage = () => {
                     </p>
                   </div>
                   <Switch
-                    checked={securitySettings.twoFactorAuth}
-                    onCheckedChange={() => setSecuritySettings({
-                      ...securitySettings, 
-                      twoFactorAuth: !securitySettings.twoFactorAuth
+                    checked={settings.twoFactorAuth}
+                    onCheckedChange={() => updateSettings({ 
+                      twoFactorAuth: !settings.twoFactorAuth 
                     })}
                   />
                 </div>
@@ -288,8 +291,8 @@ const SettingsPage = () => {
                     Définissez la durée d'inactivité avant d'être déconnecté automatiquement.
                   </p>
                   <Select 
-                    value={securitySettings.sessionTimeout} 
-                    onValueChange={(value) => setSecuritySettings({...securitySettings, sessionTimeout: value})}
+                    value={settings.sessionTimeout} 
+                    onValueChange={(value) => updateSettings({ sessionTimeout: value })}
                   >
                     <SelectTrigger className="w-full sm:w-72">
                       <SelectValue placeholder="Sélectionnez une durée" />
@@ -327,7 +330,7 @@ const SettingsPage = () => {
                 </div>
               </CardContent>
               <CardFooter>
-                <Button onClick={() => saveSettings("de sécurité")}>
+                <Button onClick={saveSecuritySettings}>
                   <Save className="h-4 w-4 mr-2" />
                   Sauvegarder les paramètres
                 </Button>
@@ -348,7 +351,7 @@ const SettingsPage = () => {
                   <CardContent className="space-y-6">
                     <div className="space-y-2">
                       <Label htmlFor="defaultLang">Langue par défaut</Label>
-                      <Select defaultValue="fr">
+                      <Select defaultValue="fr" onValueChange={(value) => updateSettings({ language: value })}>
                         <SelectTrigger className="w-full sm:w-72">
                           <SelectValue placeholder="Sélectionnez une langue" />
                         </SelectTrigger>
@@ -388,7 +391,7 @@ const SettingsPage = () => {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <Button onClick={() => saveSettings("système")}>
+                    <Button onClick={saveSystemSettings}>
                       <Save className="h-4 w-4 mr-2" />
                       Sauvegarder les paramètres
                     </Button>
@@ -444,7 +447,7 @@ const SettingsPage = () => {
                     </div>
                   </CardContent>
                   <CardFooter>
-                    <Button onClick={() => saveSettings("de l'API")}>
+                    <Button onClick={() => updateSettings(settings, "de l'API")}>
                       <Save className="h-4 w-4 mr-2" />
                       Sauvegarder les paramètres
                     </Button>

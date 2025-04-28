@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -58,22 +57,73 @@ export const ModuleManagement = () => {
   const fetchModules = async () => {
     try {
       setIsLoading(true);
+      
       const { data, error } = await supabase
         .from("modules")
         .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setModules(data || []);
+      if (error) {
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        await createDefaultModules();
+        
+        const { data: refreshedData, error: refreshError } = await supabase
+          .from("modules")
+          .select("*")
+          .order("created_at", { ascending: false });
+          
+        if (refreshError) throw refreshError;
+        setModules(refreshedData || []);
+      } else {
+        setModules(data);
+      }
     } catch (error: any) {
       toast({
         title: "Erreur",
-        description: "Impossible de charger les modules",
+        description: "Impossible de charger les modules: " + error.message,
         variant: "destructive",
       });
       console.error("Error fetching modules:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const createDefaultModules = async () => {
+    const defaultModules = [
+      {
+        module_name: "Module PDF Basic",
+        description: "Fonctionnalités de base pour la manipulation de fichiers PDF",
+        is_active: true,
+        is_premium: false,
+      },
+      {
+        module_name: "Module PDF Advanced",
+        description: "Fonctionnalités avancées pour la manipulation de fichiers PDF",
+        is_active: true,
+        is_premium: true,
+      },
+      {
+        module_name: "Module OCR",
+        description: "Reconnaissance optique de caractères pour les documents scannés",
+        is_active: true,
+        is_premium: true,
+      },
+    ];
+
+    try {
+      const { error } = await supabase.from("modules").insert(defaultModules);
+      if (error) throw error;
+      
+      toast({
+        title: "Modules par défaut créés",
+        description: "Des modules par défaut ont été créés pour démonstration",
+      });
+    } catch (error: any) {
+      console.error("Error creating default modules:", error);
     }
   };
 
@@ -123,7 +173,6 @@ export const ModuleManagement = () => {
     e.preventDefault();
     try {
       if (selectedModule) {
-        // Update existing module
         const { error } = await supabase
           .from("modules")
           .update({
@@ -141,7 +190,6 @@ export const ModuleManagement = () => {
           description: "Module mis à jour avec succès",
         });
       } else {
-        // Create new module
         const { error } = await supabase.from("modules").insert({
           module_name: formData.module_name,
           description: formData.description || null,
@@ -172,7 +220,6 @@ export const ModuleManagement = () => {
     if (!selectedModule) return;
 
     try {
-      // First delete all user_module associations
       const { error: userModulesError } = await supabase
         .from("user_modules")
         .delete()
@@ -180,7 +227,6 @@ export const ModuleManagement = () => {
 
       if (userModulesError) throw userModulesError;
 
-      // Then delete the module
       const { error } = await supabase
         .from("modules")
         .delete()
@@ -300,7 +346,6 @@ export const ModuleManagement = () => {
         </div>
       )}
 
-      {/* Create/Edit Module Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -372,7 +417,6 @@ export const ModuleManagement = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
