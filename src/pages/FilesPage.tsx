@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -70,7 +69,6 @@ const FilesPage = () => {
   const [totalStorage, setTotalStorage] = useState(0);
   const [fileTypeCount, setFileTypeCount] = useState<{[key: string]: number}>({});
 
-  // Redirect if not super_admin
   if (!roleLoading && role !== "super_admin") {
     return <Navigate to="/dashboard" />;
   }
@@ -82,7 +80,6 @@ const FilesPage = () => {
   const fetchFiles = async () => {
     setIsLoading(true);
     try {
-      // Fetch files from Supabase
       const { data, error } = await supabase
         .from('files')
         .select(`
@@ -96,7 +93,6 @@ const FilesPage = () => {
       
       if (error) throw error;
       
-      // For each file, get the user's email from their profile
       if (data && data.length > 0) {
         const filesWithUserEmail = await Promise.all(data.map(async (file) => {
           const { data: userData, error: userError } = await supabase
@@ -105,8 +101,6 @@ const FilesPage = () => {
             .eq('id', file.user_id)
             .single();
           
-          // Get user email from auth.users (needs special permission)
-          // In a real app you'd store the email in the profiles table
           return {
             ...file,
             user_email: userData ? `user-${userData.id.substring(0, 8)}` : 'Unknown User'
@@ -115,20 +109,15 @@ const FilesPage = () => {
         
         setFiles(filesWithUserEmail);
         
-        // Calculate storage statistics
-        if (filesWithUserEmail.length > 0) {
-          // Assume average file size (in a real app, you would store the actual size)
-          const avgFileSizeMB = 3;
-          setTotalStorage(filesWithUserEmail.length * avgFileSizeMB);
-          
-          // Count files by type
-          const typeCounts: {[key: string]: number} = {};
-          filesWithUserEmail.forEach(file => {
-            const type = file.file_type || 'unknown';
-            typeCounts[type] = (typeCounts[type] || 0) + 1;
-          });
-          setFileTypeCount(typeCounts);
-        }
+        const avgFileSizeMB = 3;
+        setTotalStorage(filesWithUserEmail.length * avgFileSizeMB);
+        
+        const typeCounts: {[key: string]: number} = {};
+        filesWithUserEmail.forEach(file => {
+          const type = file.file_type || 'unknown';
+          typeCounts[type] = (typeCounts[type] || 0) + 1;
+        });
+        setFileTypeCount(typeCounts);
       } else {
         setFiles([]);
         setTotalStorage(0);
@@ -147,7 +136,6 @@ const FilesPage = () => {
 
   const handleDelete = async (id: string) => {
     try {
-      // First get file info to find storage path
       const { data: fileData, error: fileError } = await supabase
         .from('files')
         .select('storage_path')
@@ -156,7 +144,6 @@ const FilesPage = () => {
       
       if (fileError) throw fileError;
       
-      // Delete from storage if path exists
       if (fileData && fileData.storage_path) {
         const { error: storageError } = await supabase.storage
           .from('files')
@@ -165,7 +152,6 @@ const FilesPage = () => {
         if (storageError) throw storageError;
       }
       
-      // Delete record from database
       const { error } = await supabase
         .from('files')
         .delete()
@@ -178,7 +164,6 @@ const FilesPage = () => {
         description: "Le fichier a été supprimé avec succès",
       });
       
-      // Update files list
       setFiles(files.filter(file => file.id !== id));
     } catch (error: any) {
       toast({
@@ -354,10 +339,13 @@ const FilesPage = () => {
                 <CardContent>
                   <div className="text-3xl font-bold">{totalStorage.toFixed(1)} MB</div>
                   <div className="mt-2 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                    <div className="h-full w-[10%] bg-blue-500"></div>
+                    <div 
+                      className="h-full bg-blue-500" 
+                      style={{ width: `${Math.min((totalStorage / 1024) * 100, 100)}%` }}
+                    ></div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    10% de l'espace alloué (1 GB)
+                    {Math.round((totalStorage / 1024) * 100)}% de l'espace alloué (1 GB)
                   </p>
                 </CardContent>
               </Card>
