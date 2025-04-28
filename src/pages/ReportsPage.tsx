@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -5,7 +6,7 @@ import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Users, PieChart, FileText } from "lucide-react";
+import { Loader2, Users, PieChart, FileText, Download } from "lucide-react";
 import { StatsCards } from "@/components/reports/StatsCards";
 import { ReportCharts } from "@/components/reports/ReportCharts";
 import { DownloadableReports } from "@/components/reports/DownloadableReports";
@@ -18,6 +19,7 @@ const ReportsPage = () => {
   const { toast } = useToast();
   const [timeframe, setTimeframe] = useState("month");
   const [isLoading, setIsLoading] = useState(true);
+  const [generatingReport, setGeneratingReport] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalFiles: 0,
@@ -78,6 +80,20 @@ const ReportsPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add the missing handleGenerateReport function
+  const handleGenerateReport = (reportType: string) => {
+    setGeneratingReport(true);
+    
+    // In a real implementation, this would generate and download a report
+    setTimeout(() => {
+      setGeneratingReport(false);
+      toast({
+        title: "Rapport généré",
+        description: `Le rapport ${reportType} a été généré avec succès.`,
+      });
+    }, 1500);
   };
 
   return (

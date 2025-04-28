@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, UserCog } from "lucide-react";
@@ -89,7 +88,7 @@ export const UserManagement = () => {
           const formattedUsers = refreshedRoles.map((userRole) => ({
             id: userRole.user_id,
             email: `user-${userRole.user_id.substring(0, 8)}@example.com`, // Mock email
-            role: userRole.role
+            role: userRole.role as AppRole
           }));
           
           setUsers(formattedUsers);
@@ -99,7 +98,7 @@ export const UserManagement = () => {
         const formattedUsers = userRoles.map((userRole) => ({
           id: userRole.user_id,
           email: `user-${userRole.user_id.substring(0, 8)}@example.com`, // Mock email
-          role: userRole.role
+          role: userRole.role as AppRole
         }));
         
         setUsers(formattedUsers);
@@ -126,10 +125,14 @@ export const UserManagement = () => {
       
       if (profiles && profiles.length > 0) {
         // Create user roles for each profile
-        const userRolesToCreate = profiles.map((profile, index) => ({
-          user_id: profile.id,
-          role: index === 0 ? "super_admin" : index < 3 ? "subscriber" : "visitor"
-        }));
+        const userRolesToCreate = profiles.map((profile, index) => {
+          // Define role as an explicit AppRole type
+          const role: AppRole = index === 0 ? "super_admin" : index < 3 ? "subscriber" : "visitor";
+          return {
+            user_id: profile.id,
+            role: role  // This is now correctly typed as AppRole
+          };
+        });
         
         const { error } = await supabase
           .from("user_roles")
