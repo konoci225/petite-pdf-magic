@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -341,11 +342,11 @@ const FilesPage = () => {
                   <div className="mt-2 h-2 w-full bg-slate-100 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-blue-500" 
-                      style={{ width: `${Math.min((totalStorage / 1024) * 100, 100)}%` }}
+                      style={{ width: `${Math.min((Number(totalStorage) / 1024) * 100, 100)}%` }}
                     ></div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {Math.round((totalStorage / 1024) * 100)}% de l'espace alloué (1 GB)
+                    {Math.round((Number(totalStorage) / 1024) * 100)}% de l'espace alloué (1 GB)
                   </p>
                 </CardContent>
               </Card>
@@ -373,7 +374,7 @@ const FilesPage = () => {
                   <CardTitle className="text-lg">Croissance mensuelle</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-3xl font-bold">+{Math.max(1, (totalStorage * 0.1).toFixed(1))} MB</div>
+                  <div className="text-3xl font-bold">+{Math.max(1, (Number(totalStorage) * 0.1).toFixed(1))} MB</div>
                   <p className="text-xs text-muted-foreground">
                     Estimation basée sur les 30 derniers jours
                   </p>
