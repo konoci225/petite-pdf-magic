@@ -1,0 +1,151 @@
+
+import React from "react";
+import Layout from "@/components/layout/Layout";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Navigate } from "react-router-dom";
+import { 
+  FileText, 
+  Scissors, 
+  Compress, 
+  FileSearch, 
+  Edit,
+  FileSignature
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
+interface PremiumTool {
+  id: string;
+  name: string;
+  description: string;
+  icon: React.ElementType;
+  path: string;
+  comingSoon?: boolean;
+}
+
+const PremiumToolsPage = () => {
+  const { role, isLoading } = useUserRole();
+  const navigate = useNavigate();
+  
+  // Only allow subscribers and superadmins
+  if (!isLoading && role !== "subscriber" && role !== "super_admin") {
+    return <Navigate to="/subscription" />;
+  }
+
+  const premiumTools: PremiumTool[] = [
+    {
+      id: "merge-pro",
+      name: "Fusion de PDF Pro",
+      description: "Combinez un nombre illimité de fichiers PDF, réorganisez les pages et ajoutez des métadonnées.",
+      icon: FileText,
+      path: "/merge"
+    },
+    {
+      id: "split",
+      name: "Division de PDF",
+      description: "Divisez un PDF en plusieurs fichiers ou extrayez des pages spécifiques.",
+      icon: Scissors,
+      path: "/split"
+    },
+    {
+      id: "compress-pro",
+      name: "Compression PDF Avancée",
+      description: "Réduisez la taille de vos fichiers PDF avec des options de qualité personnalisables.",
+      icon: Compress,
+      path: "/compress"
+    },
+    {
+      id: "ocr",
+      name: "OCR PDF",
+      description: "Convertissez des images PDF en texte éditable et recherchable.",
+      icon: FileSearch,
+      path: "/ocr"
+    },
+    {
+      id: "edit",
+      name: "Édition PDF",
+      description: "Modifiez le texte et les images de vos documents PDF directement.",
+      icon: Edit,
+      path: "/edit"
+    },
+    {
+      id: "signature",
+      name: "Signature PDF",
+      description: "Ajoutez des signatures électroniques à vos documents PDF.",
+      icon: FileSignature,
+      path: "/signature"
+    },
+    {
+      id: "watermark",
+      name: "Filigrane PDF",
+      description: "Ajoutez des filigranes personnalisés à vos documents PDF.",
+      icon: FileText,
+      path: "/watermark",
+      comingSoon: true
+    },
+    {
+      id: "password",
+      name: "Protection par mot de passe",
+      description: "Sécurisez vos PDF avec un mot de passe et des restrictions d'édition.",
+      icon: FileText,
+      path: "/password",
+      comingSoon: true
+    }
+  ];
+
+  return (
+    <Layout>
+      <div className="container mx-auto py-8">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-3xl font-bold">Outils Premium</h1>
+          <Badge variant="secondary" className="bg-blue-50 text-blue-700 text-sm">
+            Accès Premium
+          </Badge>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+          <p className="text-blue-700">
+            En tant qu'abonné premium, vous avez accès à toute notre suite d'outils avancés. Découvrez toutes les fonctionnalités disponibles ci-dessous.
+          </p>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {premiumTools.map((tool) => (
+            <Card key={tool.id} className={tool.comingSoon ? "bg-gray-50 border-dashed" : ""}>
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <CardTitle className="flex items-center gap-2">
+                    {tool.name}
+                    {tool.comingSoon && (
+                      <Badge variant="outline" className="ml-2">
+                        Bientôt disponible
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <tool.icon className="h-5 w-5 text-muted-foreground" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <p>{tool.description}</p>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  className="w-full"
+                  variant={tool.comingSoon ? "outline" : "default"}
+                  disabled={tool.comingSoon}
+                  onClick={() => navigate(tool.path)}
+                >
+                  {tool.comingSoon ? "Prochainement" : "Utiliser"}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </Layout>
+  );
+};
+
+export default PremiumToolsPage;

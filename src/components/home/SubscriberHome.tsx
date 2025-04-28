@@ -1,12 +1,24 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Wrench, Clock } from "lucide-react";
+import { FileText, Wrench, Clock, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { FileUploader } from "@/components/tools/FileUploader";
+import { useToast } from "@/hooks/use-toast";
 
 const SubscriberHome = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleUploadComplete = () => {
+    toast({
+      title: "Fichier téléchargé",
+      description: "Votre fichier a été téléchargé avec succès",
+    });
+    navigate("/my-files");
+  };
 
   return (
     <div className="space-y-6">
@@ -16,6 +28,22 @@ const SubscriberHome = () => {
           Abonné
         </Badge>
       </div>
+      
+      <Card className="bg-gray-50">
+        <CardHeader>
+          <CardTitle className="text-center">Déposez vos fichiers PDF ici</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col items-center">
+          <FileUploader 
+            onUploadComplete={handleUploadComplete}
+            maxFiles={10} 
+            acceptedFileTypes={[".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"]}
+          />
+          <p className="text-sm text-muted-foreground mt-4 text-center">
+            Ou sélectionnez un outil ci-dessous pour démarrer
+          </p>
+        </CardContent>
+      </Card>
       
       <div className="grid gap-4 md:grid-cols-3">
         <Card>

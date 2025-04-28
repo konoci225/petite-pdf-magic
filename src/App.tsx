@@ -15,18 +15,16 @@ import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import DashboardPage from "./pages/DashboardPage";
-
-// These would be implemented as needed
-const ProfilePage = () => <div>Profile Page (To be implemented)</div>;
-const SubscriptionPage = () => <div>Subscription Page (To be implemented)</div>;
-const HelpPage = () => <div>Help Page (To be implemented)</div>;
-const SettingsPage = () => <div>Settings Page (To be implemented)</div>;
-const FilesPage = () => <div>Files Page (To be implemented)</div>;
-const ReportsPage = () => <div>Reports Page (To be implemented)</div>;
-const ViewerPage = () => <div>PDF Viewer Page (To be implemented)</div>;
-const MyFilesPage = () => <div>My Files Page (To be implemented)</div>;
-const ToolsPage = () => <div>Tools Page (To be implemented)</div>;
-const PremiumToolsPage = () => <div>Premium Tools Page (To be implemented)</div>;
+import ProfilePage from "./pages/ProfilePage";
+import SubscriptionPage from "./pages/SubscriptionPage";
+import HelpPage from "./pages/HelpPage";
+import SettingsPage from "./pages/SettingsPage";
+import FilesPage from "./pages/FilesPage";
+import ReportsPage from "./pages/ReportsPage";
+import ViewerPage from "./pages/ViewerPage";
+import MyFilesPage from "./pages/MyFilesPage";
+import ToolsPage from "./pages/ToolsPage";
+import PremiumToolsPage from "./pages/PremiumToolsPage";
 
 const queryClient = new QueryClient();
 
