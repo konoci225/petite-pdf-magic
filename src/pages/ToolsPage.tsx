@@ -10,10 +10,10 @@ import {
   Upload, 
   Download,
   Lock,
-  FileWord,
+  File,
   FileImage,
   FileSpreadsheet,
-  FilePresentation,
+  Presentation,
   FileSignature
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -118,7 +118,7 @@ const ToolsPage = () => {
       id: "pdf-to-word",
       name: "PDF en Word",
       description: "Convertissez vos documents PDF en fichiers Word éditables.",
-      icon: FileWord,
+      icon: File,
       path: "/pdf-to-word",
       isPremium: true
     },
@@ -134,7 +134,7 @@ const ToolsPage = () => {
       id: "pdf-to-powerpoint",
       name: "PDF en PowerPoint",
       description: "Convertissez vos présentations PDF en fichiers PowerPoint.",
-      icon: FilePresentation,
+      icon: Presentation,
       path: "/pdf-to-powerpoint",
       isPremium: true
     },

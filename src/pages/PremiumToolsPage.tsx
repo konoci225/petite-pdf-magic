@@ -1,4 +1,3 @@
-
 import React from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -12,10 +11,10 @@ import {
   Download,
   Lock,
   FileSignature,
-  FileWord,
+  File,
   FileImage,
   FileSpreadsheet,
-  FilePresentation
+  Presentation
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -86,7 +85,7 @@ const PremiumToolsPage = () => {
       id: "pdf-to-word",
       name: "PDF en Word",
       description: "Convertissez vos documents PDF en fichiers Word éditables.",
-      icon: FileWord,
+      icon: File,
       path: "/pdf-to-word"
     },
     {
@@ -100,7 +99,7 @@ const PremiumToolsPage = () => {
       id: "pdf-to-powerpoint",
       name: "PDF en PowerPoint",
       description: "Convertissez vos présentations PDF en fichiers PowerPoint.",
-      icon: FilePresentation,
+      icon: Presentation,
       path: "/pdf-to-powerpoint"
     },
     {

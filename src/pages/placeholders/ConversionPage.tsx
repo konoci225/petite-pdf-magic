@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
   FileText,
-  FileWord,
+  File,
   FileSpreadsheet,
-  FilePresentation,
+  Presentation,
   FileImage,
   ArrowRight
 } from "lucide-react";
@@ -42,17 +42,17 @@ const ConversionPage: React.FC<ConversionPageProps> = ({ type, title }) => {
 
   const getSourceIcon = () => {
     if (type.startsWith("pdf-to")) return FileText;
-    if (type.startsWith("word-to")) return FileWord;
+    if (type.startsWith("word-to")) return File;
     if (type.startsWith("excel-to")) return FileSpreadsheet;
-    if (type.startsWith("powerpoint-to")) return FilePresentation;
+    if (type.startsWith("powerpoint-to")) return Presentation;
     if (type.startsWith("jpg-to")) return FileImage;
     return FileText;
   };
 
   const getTargetIcon = () => {
-    if (type.includes("-to-word")) return FileWord;
+    if (type.includes("-to-word")) return File;
     if (type.includes("-to-excel")) return FileSpreadsheet;
-    if (type.includes("-to-powerpoint")) return FilePresentation;
+    if (type.includes("-to-powerpoint")) return Presentation;
     if (type.includes("-to-jpg")) return FileImage;
     if (type.includes("-to-pdf")) return FileText;
     return FileText;

@@ -1,6 +1,5 @@
-
 import ToolCard from "../tools/ToolCard";
-import { Merge, Scissors, FileImage, FileText, FileWord, FileSpreadsheet, FilePresentation } from "lucide-react";
+import { Merge, Scissors, FileImage, FileText, File, FileSpreadsheet, Presentation } from "lucide-react";
 
 const tools = [
   {
@@ -27,7 +26,7 @@ const tools = [
   {
     title: "PDF en Word",
     description: "Convertissez un PDF en document Word éditable.",
-    icon: <FileWord className="h-6 w-6 text-white" />,
+    icon: <File className="h-6 w-6 text-white" />,
     to: "/pdf-to-word",
     color: "bg-blue-500",
   },
