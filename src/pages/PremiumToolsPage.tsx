@@ -11,7 +11,11 @@ import {
   Upload, 
   Download,
   Lock,
-  FileSignature
+  FileSignature,
+  FileWord,
+  FileImage,
+  FileSpreadsheet,
+  FilePresentation
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -77,6 +81,62 @@ const PremiumToolsPage = () => {
       description: "Ajoutez des signatures électroniques à vos documents PDF.",
       icon: FileSignature,
       path: "/signature"
+    },
+    {
+      id: "pdf-to-word",
+      name: "PDF en Word",
+      description: "Convertissez vos documents PDF en fichiers Word éditables.",
+      icon: FileWord,
+      path: "/pdf-to-word"
+    },
+    {
+      id: "pdf-to-excel",
+      name: "PDF en Excel",
+      description: "Convertissez vos tableaux PDF en feuilles de calcul Excel.",
+      icon: FileSpreadsheet,
+      path: "/pdf-to-excel"
+    },
+    {
+      id: "pdf-to-powerpoint",
+      name: "PDF en PowerPoint",
+      description: "Convertissez vos présentations PDF en fichiers PowerPoint.",
+      icon: FilePresentation,
+      path: "/pdf-to-powerpoint"
+    },
+    {
+      id: "pdf-to-jpg",
+      name: "PDF en JPG",
+      description: "Convertissez les pages de votre PDF en images JPG.",
+      icon: FileImage,
+      path: "/pdf-to-jpg"
+    },
+    {
+      id: "word-to-pdf",
+      name: "Word en PDF",
+      description: "Convertissez vos documents Word en PDF de haute qualité.",
+      icon: FileText,
+      path: "/word-to-pdf"
+    },
+    {
+      id: "excel-to-pdf",
+      name: "Excel en PDF",
+      description: "Convertissez vos feuilles de calcul Excel en PDF.",
+      icon: FileText,
+      path: "/excel-to-pdf"
+    },
+    {
+      id: "powerpoint-to-pdf",
+      name: "PowerPoint en PDF",
+      description: "Convertissez vos présentations PowerPoint en PDF.",
+      icon: FileText,
+      path: "/powerpoint-to-pdf"
+    },
+    {
+      id: "jpg-to-pdf",
+      name: "JPG en PDF",
+      description: "Convertissez vos images JPG en documents PDF.",
+      icon: FileText,
+      path: "/jpg-to-pdf"
     },
     {
       id: "watermark",

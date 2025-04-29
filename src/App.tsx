@@ -26,6 +26,9 @@ import MyFilesPage from "./pages/MyFilesPage";
 import ToolsPage from "./pages/ToolsPage";
 import PremiumToolsPage from "./pages/PremiumToolsPage";
 
+// Import placeholder pages for conversion tools
+import ConversionPage from "./pages/placeholders/ConversionPage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -165,6 +168,73 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            
+            {/* New conversion tool routes */}
+            <Route
+              path="/pdf-to-word"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ConversionPage type="pdf-to-word" title="Convertir PDF en Word" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pdf-to-excel"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ConversionPage type="pdf-to-excel" title="Convertir PDF en Excel" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pdf-to-powerpoint"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ConversionPage type="pdf-to-powerpoint" title="Convertir PDF en PowerPoint" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/pdf-to-jpg"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ConversionPage type="pdf-to-jpg" title="Convertir PDF en JPG" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/word-to-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ConversionPage type="word-to-pdf" title="Convertir Word en PDF" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/excel-to-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ConversionPage type="excel-to-pdf" title="Convertir Excel en PDF" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/powerpoint-to-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ConversionPage type="powerpoint-to-pdf" title="Convertir PowerPoint en PDF" />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/jpg-to-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ConversionPage type="jpg-to-pdf" title="Convertir JPG en PDF" />
+                </ProtectedRoute>
+              }
+            />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

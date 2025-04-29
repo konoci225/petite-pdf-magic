@@ -1,6 +1,6 @@
 
 import ToolCard from "../tools/ToolCard";
-import { Merge, Scissors, FileImage, FileText } from "lucide-react";
+import { Merge, Scissors, FileImage, FileText, FileWord, FileSpreadsheet, FilePresentation } from "lucide-react";
 
 const tools = [
   {
@@ -25,10 +25,38 @@ const tools = [
     color: "bg-green-500",
   },
   {
-    title: "PDF en texte",
-    description: "Extraire le texte de votre document PDF.",
+    title: "PDF en Word",
+    description: "Convertissez un PDF en document Word éditable.",
+    icon: <FileWord className="h-6 w-6 text-white" />,
+    to: "/pdf-to-word",
+    color: "bg-blue-500",
+  },
+  {
+    title: "PDF en Excel",
+    description: "Convertissez un PDF en feuille de calcul Excel.",
+    icon: <FileSpreadsheet className="h-6 w-6 text-white" />,
+    to: "/pdf-to-excel",
+    color: "bg-green-600",
+  },
+  {
+    title: "PDF en JPG",
+    description: "Convertissez un PDF en images JPG.",
+    icon: <FileImage className="h-6 w-6 text-white" />,
+    to: "/pdf-to-jpg",
+    color: "bg-purple-500",
+  },
+  {
+    title: "Word en PDF",
+    description: "Convertissez un document Word en PDF.",
     icon: <FileText className="h-6 w-6 text-white" />,
-    to: "/extract-text",
+    to: "/word-to-pdf",
+    color: "bg-red-500",
+  },
+  {
+    title: "JPG en PDF",
+    description: "Créez un PDF à partir d'images JPG.",
+    icon: <FileText className="h-6 w-6 text-white" />,
+    to: "/jpg-to-pdf",
     color: "bg-amber-500",
   },
 ];

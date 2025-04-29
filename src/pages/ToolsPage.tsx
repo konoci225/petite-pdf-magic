@@ -1,3 +1,4 @@
+
 import React from "react";
 import Layout from "@/components/layout/Layout";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -8,7 +9,12 @@ import {
   Eye, 
   Upload, 
   Download,
-  Lock
+  Lock,
+  FileWord,
+  FileImage,
+  FileSpreadsheet,
+  FilePresentation,
+  FileSignature
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -96,7 +102,7 @@ const ToolsPage = () => {
       id: "signature",
       name: "Signature PDF",
       description: "Ajoutez des signatures numériques à vos documents PDF.",
-      icon: FileText,
+      icon: FileSignature,
       path: "/signature",
       isPremium: true
     },
@@ -106,6 +112,70 @@ const ToolsPage = () => {
       description: "Modifiez le texte et les images de vos documents PDF.",
       icon: FileText,
       path: "/edit",
+      isPremium: true
+    },
+    {
+      id: "pdf-to-word",
+      name: "PDF en Word",
+      description: "Convertissez vos documents PDF en fichiers Word éditables.",
+      icon: FileWord,
+      path: "/pdf-to-word",
+      isPremium: true
+    },
+    {
+      id: "pdf-to-excel",
+      name: "PDF en Excel",
+      description: "Convertissez vos tableaux PDF en feuilles de calcul Excel.",
+      icon: FileSpreadsheet,
+      path: "/pdf-to-excel",
+      isPremium: true
+    },
+    {
+      id: "pdf-to-powerpoint",
+      name: "PDF en PowerPoint",
+      description: "Convertissez vos présentations PDF en fichiers PowerPoint.",
+      icon: FilePresentation,
+      path: "/pdf-to-powerpoint",
+      isPremium: true
+    },
+    {
+      id: "pdf-to-jpg",
+      name: "PDF en JPG",
+      description: "Convertissez les pages de votre PDF en images JPG.",
+      icon: FileImage,
+      path: "/pdf-to-jpg",
+      isPremium: true
+    },
+    {
+      id: "word-to-pdf",
+      name: "Word en PDF",
+      description: "Convertissez vos documents Word en PDF de haute qualité.",
+      icon: FileText,
+      path: "/word-to-pdf",
+      isPremium: true
+    },
+    {
+      id: "excel-to-pdf",
+      name: "Excel en PDF",
+      description: "Convertissez vos feuilles de calcul Excel en PDF.",
+      icon: FileText,
+      path: "/excel-to-pdf",
+      isPremium: true
+    },
+    {
+      id: "powerpoint-to-pdf",
+      name: "PowerPoint en PDF",
+      description: "Convertissez vos présentations PowerPoint en PDF.",
+      icon: FileText,
+      path: "/powerpoint-to-pdf",
+      isPremium: true
+    },
+    {
+      id: "jpg-to-pdf",
+      name: "JPG en PDF",
+      description: "Convertissez vos images JPG en documents PDF.",
+      icon: FileText,
+      path: "/jpg-to-pdf",
       isPremium: true
     }
   ];
