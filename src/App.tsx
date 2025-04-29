@@ -28,6 +28,11 @@ import PremiumToolsPage from "./pages/PremiumToolsPage";
 
 // Import placeholder pages for conversion tools
 import ConversionPage from "./pages/placeholders/ConversionPage";
+import SignPdfPage from "./pages/placeholders/SignPdfPage";
+import EditPdfPage from "./pages/placeholders/EditPdfPage";
+import WatermarkPdfPage from "./pages/placeholders/WatermarkPdfPage";
+import ProtectPdfPage from "./pages/placeholders/ProtectPdfPage";
+import OrganizePdfPage from "./pages/placeholders/OrganizePdfPage";
 
 const queryClient = new QueryClient();
 
@@ -169,7 +174,7 @@ const App = () => (
               }
             />
             
-            {/* New conversion tool routes */}
+            {/* Conversion tool routes */}
             <Route
               path="/pdf-to-word"
               element={
@@ -231,6 +236,48 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
                   <ConversionPage type="jpg-to-pdf" title="Convertir JPG en PDF" />
+                </ProtectedRoute>
+              }
+            />
+            
+            {/* New additional tools */}
+            <Route
+              path="/sign-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <SignPdfPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/edit-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <EditPdfPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/watermark-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <WatermarkPdfPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/protect-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <ProtectPdfPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/organize-pdf"
+              element={
+                <ProtectedRoute allowedRoles={["subscriber", "super_admin"]}>
+                  <OrganizePdfPage />
                 </ProtectedRoute>
               }
             />

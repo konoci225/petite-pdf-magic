@@ -1,5 +1,6 @@
+
 import ToolCard from "../tools/ToolCard";
-import { Merge, Scissors, FileImage, FileText, File, FileSpreadsheet, Presentation } from "lucide-react";
+import { Merge, Scissors, FileImage, FileText, File, FileSpreadsheet, Presentation, FileSignature, Shield, Layout } from "lucide-react";
 
 const tools = [
   {
@@ -57,6 +58,41 @@ const tools = [
     icon: <FileText className="h-6 w-6 text-white" />,
     to: "/jpg-to-pdf",
     color: "bg-amber-500",
+  },
+  {
+    title: "Signer PDF",
+    description: "Ajoutez votre signature à un document PDF.",
+    icon: <FileSignature className="h-6 w-6 text-white" />,
+    to: "/sign-pdf",
+    color: "bg-indigo-600",
+  },
+  {
+    title: "Modifier PDF",
+    description: "Éditez le contenu de votre fichier PDF.",
+    icon: <FileText className="h-6 w-6 text-white" />,
+    to: "/edit-pdf",
+    color: "bg-cyan-600",
+  },
+  {
+    title: "Filigrane PDF",
+    description: "Ajoutez un filigrane à vos documents PDF.",
+    icon: <Layout className="h-6 w-6 text-white" />,
+    to: "/watermark-pdf",
+    color: "bg-teal-600",
+  },
+  {
+    title: "Protéger PDF",
+    description: "Sécurisez vos PDF avec un mot de passe.",
+    icon: <Shield className="h-6 w-6 text-white" />,
+    to: "/protect-pdf",
+    color: "bg-rose-600",
+  },
+  {
+    title: "Organiser PDF",
+    description: "Réorganisez les pages de votre PDF.",
+    icon: <Layout className="h-6 w-6 text-white" />,
+    to: "/organize-pdf",
+    color: "bg-fuchsia-600",
   },
 ];
 

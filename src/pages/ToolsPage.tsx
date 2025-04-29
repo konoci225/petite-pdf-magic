@@ -14,7 +14,9 @@ import {
   FileImage,
   FileSpreadsheet,
   Presentation,
-  FileSignature
+  FileSignature,
+  Shield,
+  Layout as LayoutIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
@@ -103,7 +105,7 @@ const ToolsPage = () => {
       name: "Signature PDF",
       description: "Ajoutez des signatures numériques à vos documents PDF.",
       icon: FileSignature,
-      path: "/signature",
+      path: "/sign-pdf",
       isPremium: true
     },
     {
@@ -111,7 +113,31 @@ const ToolsPage = () => {
       name: "Édition PDF",
       description: "Modifiez le texte et les images de vos documents PDF.",
       icon: FileText,
-      path: "/edit",
+      path: "/edit-pdf",
+      isPremium: true
+    },
+    {
+      id: "watermark",
+      name: "Filigrane PDF",
+      description: "Ajoutez un filigrane à vos documents PDF.",
+      icon: LayoutIcon,
+      path: "/watermark-pdf",
+      isPremium: true
+    },
+    {
+      id: "protect",
+      name: "Protéger PDF",
+      description: "Sécurisez vos PDF avec un mot de passe.",
+      icon: Shield,
+      path: "/protect-pdf",
+      isPremium: true
+    },
+    {
+      id: "organize",
+      name: "Organiser PDF",
+      description: "Réorganisez les pages de votre PDF.",
+      icon: LayoutIcon,
+      path: "/organize-pdf",
       isPremium: true
     },
     {

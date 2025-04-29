@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -23,6 +23,7 @@ const FileUploader = ({
 }: FileUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const accept = acceptedFileTypes.join(",");
 
@@ -142,6 +143,13 @@ const FileUploader = ({
     [onFilesSelected, onUploadComplete, validateFiles]
   );
 
+  const handleButtonClick = () => {
+    // Trigger file input click when the button is clicked
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
   return (
     <div
       className={`file-drop-area p-6 border-2 border-dashed rounded-lg ${
@@ -161,6 +169,7 @@ const FileUploader = ({
           ou
         </p>
         <input
+          ref={fileInputRef}
           type="file"
           accept={accept}
           multiple={multiple}
@@ -168,11 +177,13 @@ const FileUploader = ({
           className="hidden"
           id="file-upload"
         />
-        <label htmlFor="file-upload">
-          <Button type="button">
-            Choisir des fichiers
-          </Button>
-        </label>
+        <Button 
+          type="button"
+          onClick={handleButtonClick}
+          className="bg-indigo-600 hover:bg-indigo-700"
+        >
+          Choisir des fichiers
+        </Button>
         <p className="text-xs text-gray-500 mt-4">
           {multiple
             ? `Vous pouvez télécharger jusqu'à ${maxFiles} fichiers (${maxSize}MB max chacun)`
