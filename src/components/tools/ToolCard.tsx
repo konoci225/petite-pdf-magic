@@ -1,52 +1,71 @@
 
-import { ReactNode } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "react-router-dom";
+import React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Lock } from "lucide-react";
 
-interface ToolCardProps {
-  title: string;
+interface Tool {
+  id: string;
+  name: string;
   description: string;
-  icon: ReactNode;
-  to: string;
-  color: string;
+  icon: React.ElementType;
+  path: string;
+  isPremium: boolean;
 }
 
-const ToolCard = ({ title, description, icon, to, color }: ToolCardProps) => {
+interface ToolCardProps {
+  tool: Tool;
+  navigate: (path: string) => void;
+  isSubscriber: boolean;
+}
+
+const ToolCard = ({ tool, navigate, isSubscriber }: ToolCardProps) => {
+  const handleClick = () => {
+    if (tool.isPremium && !isSubscriber) {
+      navigate("/subscription");
+    } else {
+      navigate(tool.path);
+    }
+  };
+
+  const Icon = tool.icon;
+
   return (
-    <Link to={to} className="group">
-      <Card className="h-full transition-all border hover:shadow-md hover:-translate-y-1">
-        <CardHeader>
-          <div
-            className={`w-16 h-16 rounded-lg flex items-center justify-center mb-4 ${color}`}
-          >
-            {icon}
-          </div>
-          <CardTitle className="text-xl">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm font-medium text-pdf-primary group-hover:text-pdf-accent transition-colors flex items-center gap-2">
-            Utiliser cet outil
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="transition-transform transform group-hover:translate-x-1"
-            >
-              <path
-                d="M6.5 12.5L11 8L6.5 3.5"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-        </CardContent>
-      </Card>
-    </Link>
+    <Card className={`${tool.isPremium && !isSubscriber ? 'bg-gray-50 opacity-80' : ''}`}>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            {tool.name}
+            {tool.isPremium && (
+              <Badge variant="secondary" className="bg-amber-50 text-amber-700 ml-2">
+                Premium
+              </Badge>
+            )}
+          </CardTitle>
+          <Icon className="h-5 w-5 text-muted-foreground" />
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p>{tool.description}</p>
+      </CardContent>
+      <CardFooter>
+        <Button 
+          onClick={handleClick} 
+          className="w-full"
+          variant={tool.isPremium && !isSubscriber ? "outline" : "default"}
+        >
+          {tool.isPremium && !isSubscriber ? (
+            <>
+              <Lock className="h-4 w-4 mr-2" />
+              Débloquer
+            </>
+          ) : (
+            "Utiliser"
+          )}
+        </Button>
+      </CardFooter>
+    </Card>
   );
 };
 

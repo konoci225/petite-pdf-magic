@@ -1,27 +1,13 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Dialog } from "@/components/ui/dialog";
+import ModulesTable from "./modules/ModulesTable";
+import ModuleForm from "./modules/ModuleForm";
+import ModuleDeleteDialog from "./modules/ModuleDeleteDialog";
 
 interface Module {
   id: string;
@@ -287,59 +273,12 @@ export const ModuleManagement = () => {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : modules.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nom</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead>Premium</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {modules.map((module) => (
-              <TableRow key={module.id}>
-                <TableCell className="font-medium">{module.module_name}</TableCell>
-                <TableCell>{module.description || "-"}</TableCell>
-                <TableCell>
-                  {module.is_premium ? (
-                    <span className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20">
-                      Premium
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
-                      Standard
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Switch
-                    checked={module.is_active}
-                    onCheckedChange={() => handleToggleActive(module)}
-                    className="data-[state=checked]:bg-green-500"
-                  />
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenEditDialog(module)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleOpenDeleteDialog(module)}
-                  >
-                    <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <ModulesTable
+          modules={modules}
+          onEditModule={handleOpenEditDialog}
+          onDeleteModule={handleOpenDeleteDialog}
+          onToggleActive={handleToggleActive}
+        />
       ) : (
         <div className="text-center py-8 text-gray-500">
           Aucun module trouvé. Créez votre premier module !
@@ -347,100 +286,21 @@ export const ModuleManagement = () => {
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {selectedModule ? "Modifier le module" : "Créer un nouveau module"}
-            </DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit}>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="module_name" className="text-right">
-                  Nom du module
-                </Label>
-                <Input
-                  id="module_name"
-                  name="module_name"
-                  value={formData.module_name}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                  required
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="description" className="text-right">
-                  Description
-                </Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleFormChange}
-                  className="col-span-3"
-                  rows={3}
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="is_premium" className="text-right">
-                  Module Premium
-                </Label>
-                <div className="col-span-3">
-                  <Switch
-                    id="is_premium"
-                    checked={formData.is_premium}
-                    onCheckedChange={(checked) =>
-                      handleSwitchChange("is_premium", checked)
-                    }
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="is_active" className="text-right">
-                  Module Actif
-                </Label>
-                <div className="col-span-3">
-                  <Switch
-                    id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) =>
-                      handleSwitchChange("is_active", checked)
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Enregistrer</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
+        <ModuleForm
+          formData={formData}
+          handleFormChange={handleFormChange}
+          handleSwitchChange={handleSwitchChange}
+          handleSubmit={handleSubmit}
+          isEditing={!!selectedModule}
+        />
       </Dialog>
 
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-          </DialogHeader>
-          <p className="py-4">
-            Êtes-vous sûr de vouloir supprimer le module "
-            {selectedModule?.module_name}" ? Cette action est irréversible.
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-            >
-              Supprimer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+        <ModuleDeleteDialog
+          selectedModule={selectedModule}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          onDelete={handleDelete}
+        />
       </Dialog>
     </div>
   );

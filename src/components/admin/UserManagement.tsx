@@ -1,24 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserCog } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
+import UsersTable from "./users/UsersTable";
+import UserModulesDialog from "./users/UserModulesDialog";
 import { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -130,7 +117,7 @@ export const UserManagement = () => {
           const role: AppRole = index === 0 ? "super_admin" : index < 3 ? "subscriber" : "visitor";
           return {
             user_id: profile.id,
-            role: role  // This is now correctly typed as AppRole
+            role: role
           };
         });
         
@@ -254,10 +241,6 @@ export const UserManagement = () => {
     }
   };
 
-  const getUserModuleCount = (userId: string) => {
-    return userModules[userId]?.length || 0;
-  };
-
   const getRoleLabel = (role: AppRole) => {
     switch (role) {
       case "super_admin":
@@ -279,7 +262,7 @@ export const UserManagement = () => {
           </span>
         );
       default:
-        return role;
+        return <span>{role}</span>;
     }
   };
 
@@ -295,35 +278,12 @@ export const UserManagement = () => {
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       ) : users.length > 0 ? (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Email</TableHead>
-              <TableHead>Rôle</TableHead>
-              <TableHead>Modules assignés</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{getRoleLabel(user.role)}</TableCell>
-                <TableCell>{getUserModuleCount(user.id)}</TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleManageModules(user)}
-                  >
-                    <UserCog className="h-4 w-4 mr-2" />
-                    Gérer les modules
-                  </Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <UsersTable 
+          users={users} 
+          userModules={userModules}
+          onManageModules={handleManageModules}
+          getRoleLabel={getRoleLabel}
+        />
       ) : (
         <div className="text-center py-8 text-gray-500">
           Aucun utilisateur trouvé.
@@ -331,61 +291,15 @@ export const UserManagement = () => {
       )}
 
       {/* Assign Modules Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              Gérer les modules pour {selectedUser?.email}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <h3 className="mb-3 font-medium">Modules disponibles :</h3>
-            {modules.length > 0 ? (
-              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                {modules.map((module) => (
-                  <div
-                    key={module.id}
-                    className="flex items-center space-x-2 p-2 rounded hover:bg-gray-50"
-                  >
-                    <Checkbox
-                      id={`module-${module.id}`}
-                      checked={selectedModules.includes(module.id)}
-                      onCheckedChange={() => handleModuleToggle(module.id)}
-                    />
-                    <div className="grid gap-1.5 leading-none">
-                      <label
-                        htmlFor={`module-${module.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center"
-                      >
-                        {module.module_name}
-                        {!module.is_active && (
-                          <span className="ml-2 text-xs text-gray-400">(inactive)</span>
-                        )}
-                        {module.is_premium && (
-                          <span className="ml-2 text-xs text-yellow-600">(premium)</span>
-                        )}
-                      </label>
-                      {module.description && (
-                        <p className="text-xs text-gray-500">{module.description}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">Aucun module disponible</p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleSaveUserModules}>
-              Enregistrer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UserModulesDialog 
+        isOpen={isDialogOpen}
+        onClose={() => setIsDialogOpen(false)}
+        selectedUser={selectedUser}
+        modules={modules}
+        selectedModules={selectedModules}
+        onModuleToggle={handleModuleToggle}
+        onSave={handleSaveUserModules}
+      />
     </div>
   );
 };
