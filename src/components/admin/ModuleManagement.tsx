@@ -44,6 +44,7 @@ export const ModuleManagement = () => {
     try {
       setIsLoading(true);
       
+      // Modification ici: récupérer les modules sans filtrer par utilisateur
       const { data, error } = await supabase
         .from("modules")
         .select("*")
@@ -52,6 +53,8 @@ export const ModuleManagement = () => {
       if (error) {
         throw error;
       }
+      
+      console.log("Modules récupérés:", data);
       
       if (!data || data.length === 0) {
         await createDefaultModules();
@@ -62,47 +65,92 @@ export const ModuleManagement = () => {
           .order("created_at", { ascending: false });
           
         if (refreshError) throw refreshError;
+        console.log("Modules créés par défaut:", refreshedData);
         setModules(refreshedData || []);
       } else {
         setModules(data);
       }
     } catch (error: any) {
+      console.error("Error fetching modules:", error);
+      // Modification: affichage de l'erreur complète
       toast({
         title: "Erreur",
         description: "Impossible de charger les modules: " + error.message,
         variant: "destructive",
       });
-      console.error("Error fetching modules:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const createDefaultModules = async () => {
-    const defaultModules = [
-      {
-        module_name: "Module PDF Basic",
-        description: "Fonctionnalités de base pour la manipulation de fichiers PDF",
-        is_active: true,
-        is_premium: false,
-      },
-      {
-        module_name: "Module PDF Advanced",
-        description: "Fonctionnalités avancées pour la manipulation de fichiers PDF",
-        is_active: true,
-        is_premium: true,
-      },
-      {
-        module_name: "Module OCR",
-        description: "Reconnaissance optique de caractères pour les documents scannés",
-        is_active: true,
-        is_premium: true,
-      },
-    ];
-
     try {
+      console.log("Création des modules par défaut");
+      // Définition de tous les modules PDF
+      const defaultModules = [
+        {
+          module_name: "Module PDF Basic",
+          description: "Fonctionnalités de base pour la manipulation de fichiers PDF",
+          is_active: true,
+          is_premium: false,
+        },
+        {
+          module_name: "Module PDF Advanced",
+          description: "Fonctionnalités avancées pour la manipulation de fichiers PDF",
+          is_active: true,
+          is_premium: true,
+        },
+        {
+          module_name: "Module OCR",
+          description: "Reconnaissance optique de caractères pour les documents scannés",
+          is_active: true,
+          is_premium: true,
+        },
+        {
+          module_name: "Module Compression PDF",
+          description: "Compression de fichiers PDF",
+          is_active: true,
+          is_premium: false,
+        },
+        {
+          module_name: "Module Fusion PDF",
+          description: "Fusion de plusieurs fichiers PDF en un seul document",
+          is_active: true,
+          is_premium: false,
+        },
+        {
+          module_name: "Module Division PDF",
+          description: "Division d'un fichier PDF en plusieurs documents",
+          is_active: true,
+          is_premium: false,
+        },
+        {
+          module_name: "Module Signature PDF",
+          description: "Signature électronique de documents PDF",
+          is_active: true,
+          is_premium: true,
+        },
+        {
+          module_name: "Module Protection PDF",
+          description: "Protection de documents PDF par mot de passe",
+          is_active: true,
+          is_premium: true,
+        },
+        {
+          module_name: "Module Filigrane PDF",
+          description: "Ajout de filigranes aux documents PDF",
+          is_active: true,
+          is_premium: true,
+        }
+      ];
+      
+      // Insertion des modules par défaut
       const { error } = await supabase.from("modules").insert(defaultModules);
-      if (error) throw error;
+      
+      if (error) {
+        console.error("Erreur lors de la création des modules par défaut:", error);
+        throw error;
+      }
       
       toast({
         title: "Modules par défaut créés",
@@ -116,6 +164,8 @@ export const ModuleManagement = () => {
   useEffect(() => {
     fetchModules();
   }, []);
+
+  // ... garder le code existant pour les gestionnaires d'événements
 
   const handleOpenCreateDialog = () => {
     setSelectedModule(null);
@@ -206,6 +256,7 @@ export const ModuleManagement = () => {
     if (!selectedModule) return;
 
     try {
+      // Suppression des relations user_modules d'abord
       const { error: userModulesError } = await supabase
         .from("user_modules")
         .delete()
@@ -213,6 +264,7 @@ export const ModuleManagement = () => {
 
       if (userModulesError) throw userModulesError;
 
+      // Puis suppression du module
       const { error } = await supabase
         .from("modules")
         .delete()

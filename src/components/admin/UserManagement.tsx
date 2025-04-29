@@ -46,27 +46,54 @@ export const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      // Query user_roles table directly now that the RLS policy is fixed
+      console.log("Récupération des utilisateurs...");
+      
+      // Essayer d'obtenir les profils d'utilisateur directement depuis auth.users
+      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      
+      if (authError) {
+        console.error("Erreur lors de la récupération des utilisateurs d'auth:", authError);
+        throw authError;
+      }
+      
+      console.log("Utilisateurs auth récupérés:", authUsers);
+      
+      // Récupérer les rôles des utilisateurs
       const { data: userRoles, error: rolesError } = await supabase
         .from("user_roles")
-        .select(`
-          user_id,
-          role
-        `);
+        .select("user_id, role");
 
-      if (rolesError) throw rolesError;
+      if (rolesError) {
+        console.error("Erreur lors de la récupération des rôles:", rolesError);
+        throw rolesError;
+      }
       
-      if (!userRoles || userRoles.length === 0) {
-        // Create some demo users if none exist
+      console.log("Rôles utilisateurs récupérés:", userRoles);
+      
+      // Créer un mapping des rôles d'utilisateur par ID
+      const roleMap: {[key: string]: AppRole} = {};
+      userRoles?.forEach(ur => {
+        roleMap[ur.user_id] = ur.role as AppRole;
+      });
+      
+      // Combiner les données des utilisateurs avec leurs rôles
+      if (authUsers && authUsers.users.length > 0) {
+        const formattedUsers = authUsers.users.map(user => ({
+          id: user.id,
+          email: user.email || `user-${user.id.substring(0, 8)}@example.com`,
+          role: roleMap[user.id] || "visitor" as AppRole
+        }));
+        
+        console.log("Utilisateurs formatés:", formattedUsers);
+        setUsers(formattedUsers);
+      } else {
+        // Si aucun utilisateur n'est trouvé, on crée des utilisateurs de démo
         await createDemoUsers();
         
-        // Fetch again after creating demo users
+        // Récupération des utilisateurs après création
         const { data: refreshedRoles, error: refreshError } = await supabase
           .from("user_roles")
-          .select(`
-            user_id,
-            role
-          `);
+          .select("user_id, role");
           
         if (refreshError) throw refreshError;
         
@@ -74,21 +101,13 @@ export const UserManagement = () => {
           // Format users data
           const formattedUsers = refreshedRoles.map((userRole) => ({
             id: userRole.user_id,
-            email: `user-${userRole.user_id.substring(0, 8)}@example.com`, // Mock email
+            email: `user-${userRole.user_id.substring(0, 8)}@example.com`,
             role: userRole.role as AppRole
           }));
           
+          console.log("Utilisateurs de démo créés:", formattedUsers);
           setUsers(formattedUsers);
         }
-      } else {
-        // Format existing users data
-        const formattedUsers = userRoles.map((userRole) => ({
-          id: userRole.user_id,
-          email: `user-${userRole.user_id.substring(0, 8)}@example.com`, // Mock email
-          role: userRole.role as AppRole
-        }));
-        
-        setUsers(formattedUsers);
       }
     } catch (error: any) {
       console.error("Error fetching users:", error);
@@ -102,6 +121,8 @@ export const UserManagement = () => {
 
   const createDemoUsers = async () => {
     try {
+      console.log("Création d'utilisateurs de démo...");
+      
       // Fetch profiles to use as demo users
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
@@ -109,6 +130,8 @@ export const UserManagement = () => {
         .limit(5);
         
       if (profilesError) throw profilesError;
+      
+      console.log("Profils pour démo:", profiles);
       
       if (profiles && profiles.length > 0) {
         // Create user roles for each profile
@@ -131,6 +154,8 @@ export const UserManagement = () => {
           title: "Utilisateurs démo créés",
           description: "Des utilisateurs démo ont été créés pour la démonstration",
         });
+      } else {
+        console.log("Aucun profil trouvé pour créer des utilisateurs de démo");
       }
     } catch (error: any) {
       console.error("Error creating demo users:", error);

@@ -8,21 +8,31 @@ import { UserManagement } from "@/components/admin/UserManagement";
 import { Loader2 } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Navigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { role, isLoading: roleLoading } = useUserRole();
+  const { toast } = useToast();
 
   useEffect(() => {
     const checkAccess = async () => {
       setIsLoading(true);
       try {
+        // Vérifier si les tables requises existent
+        await ensureTablesExist();
+        
         // In a real app, you might check more detailed permissions here
         setTimeout(() => {
           setIsLoading(false);
         }, 500);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error checking admin access:", error);
+        toast({
+          title: "Erreur",
+          description: "Problème d'accès au tableau de bord administrateur: " + error.message,
+          variant: "destructive",
+        });
         setIsLoading(false);
       }
     };
@@ -31,6 +41,47 @@ const AdminDashboard = () => {
       checkAccess();
     }
   }, [roleLoading]);
+
+  // Fonction pour s'assurer que les tables nécessaires existent
+  const ensureTablesExist = async () => {
+    try {
+      // Vérifier l'existence de la table modules
+      const { error: modulesError } = await supabase
+        .from('modules')
+        .select('id')
+        .limit(1);
+
+      if (modulesError) {
+        console.error("Erreur lors de la vérification de la table modules:", modulesError);
+        throw new Error("La table modules est inaccessible");
+      }
+
+      // Vérifier l'existence de la table user_roles
+      const { error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .limit(1);
+
+      if (userRolesError) {
+        console.error("Erreur lors de la vérification de la table user_roles:", userRolesError);
+        throw new Error("La table user_roles est inaccessible");
+      }
+
+      // Vérifier l'existence de la table user_modules
+      const { error: userModulesError } = await supabase
+        .from('user_modules')
+        .select('user_id, module_id')
+        .limit(1);
+
+      if (userModulesError) {
+        console.error("Erreur lors de la vérification de la table user_modules:", userModulesError);
+        throw new Error("La table user_modules est inaccessible");
+      }
+    } catch (error) {
+      console.error("Error checking tables:", error);
+      throw error;
+    }
+  };
 
   // Redirect if not super_admin
   if (!roleLoading && role !== "super_admin") {
