@@ -32,133 +32,93 @@ export const UserManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const fetchData = async () => {
     setIsLoading(true);
-    await Promise.all([
-      fetchUsers(),
-      fetchModules(),
-      fetchUserModules(),
-    ]);
-    setIsLoading(false);
+    setError(null);
+    
+    try {
+      await Promise.all([
+        fetchUsers(),
+        fetchModules(),
+        fetchUserModules(),
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const fetchUsers = async () => {
     try {
       console.log("Récupération des utilisateurs...");
       
-      // Essayer d'obtenir les profils d'utilisateur directement depuis auth.users
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-      
-      if (authError) {
-        console.error("Erreur lors de la récupération des utilisateurs d'auth:", authError);
-        throw authError;
-      }
-      
-      console.log("Utilisateurs auth récupérés:", authUsers);
-      
-      // Récupérer les rôles des utilisateurs
+      // Get user_roles first since we can access this directly
       const { data: userRoles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
-
+      
       if (rolesError) {
         console.error("Erreur lors de la récupération des rôles:", rolesError);
-        throw rolesError;
+        setError("Impossible de récupérer les rôles des utilisateurs: " + rolesError.message);
+        return;
       }
       
-      console.log("Rôles utilisateurs récupérés:", userRoles);
+      if (!userRoles || userRoles.length === 0) {
+        console.log("Aucun utilisateur trouvé.");
+        setUsers([]);
+        return;
+      }
       
-      // Créer un mapping des rôles d'utilisateur par ID
-      const roleMap: {[key: string]: AppRole} = {};
-      userRoles?.forEach(ur => {
-        roleMap[ur.user_id] = ur.role as AppRole;
-      });
+      console.log(`Trouvé ${userRoles.length} roles d'utilisateurs`);
       
-      // Combiner les données des utilisateurs avec leurs rôles
-      if (authUsers && authUsers.users.length > 0) {
-        const formattedUsers = authUsers.users.map(user => ({
-          id: user.id,
-          email: user.email || `user-${user.id.substring(0, 8)}@example.com`,
-          role: roleMap[user.id] || "visitor" as AppRole
-        }));
-        
-        console.log("Utilisateurs formatés:", formattedUsers);
-        setUsers(formattedUsers);
-      } else {
-        // Si aucun utilisateur n'est trouvé, on crée des utilisateurs de démo
-        await createDemoUsers();
-        
-        // Récupération des utilisateurs après création
-        const { data: refreshedRoles, error: refreshError } = await supabase
-          .from("user_roles")
-          .select("user_id, role");
+      // For each user_id in user_roles, check if they have a profile
+      const formattedUsers: User[] = [];
+      
+      for (const userRole of userRoles) {
+        // Try to get user email from auth if possible
+        try {
+          const { data, error: authError } = await supabase.auth.admin.getUserById(userRole.user_id);
           
-        if (refreshError) throw refreshError;
-        
-        if (refreshedRoles && refreshedRoles.length > 0) {
-          // Format users data
-          const formattedUsers = refreshedRoles.map((userRole) => ({
+          if (authError) {
+            console.warn(`Impossible de récupérer l'utilisateur auth pour ${userRole.user_id}: ${authError.message}`);
+            // Fall back to a generated email
+            formattedUsers.push({
+              id: userRole.user_id,
+              email: `utilisateur-${userRole.user_id.substring(0, 6)}@exemple.com`,
+              role: userRole.role as AppRole
+            });
+          } else if (data && data.user) {
+            // If we found the auth user, use their email
+            formattedUsers.push({
+              id: userRole.user_id,
+              email: data.user.email || `utilisateur-${userRole.user_id.substring(0, 6)}@exemple.com`,
+              role: userRole.role as AppRole
+            });
+          }
+        } catch (error) {
+          console.warn(`Erreur pour l'utilisateur ${userRole.user_id}:`, error);
+          // Fall back to a generated email
+          formattedUsers.push({
             id: userRole.user_id,
-            email: `user-${userRole.user_id.substring(0, 8)}@example.com`,
+            email: `utilisateur-${userRole.user_id.substring(0, 6)}@exemple.com`,
             role: userRole.role as AppRole
-          }));
-          
-          console.log("Utilisateurs de démo créés:", formattedUsers);
-          setUsers(formattedUsers);
+          });
         }
       }
+      
+      console.log("Utilisateurs formatés:", formattedUsers);
+      setUsers(formattedUsers);
+      
     } catch (error: any) {
       console.error("Error fetching users:", error);
+      setError("Impossible de charger les utilisateurs: " + error.message);
       toast({
         title: "Erreur",
         description: "Impossible de charger les utilisateurs: " + error.message,
         variant: "destructive",
       });
-    }
-  };
-
-  const createDemoUsers = async () => {
-    try {
-      console.log("Création d'utilisateurs de démo...");
-      
-      // Fetch profiles to use as demo users
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id")
-        .limit(5);
-        
-      if (profilesError) throw profilesError;
-      
-      console.log("Profils pour démo:", profiles);
-      
-      if (profiles && profiles.length > 0) {
-        // Create user roles for each profile
-        const userRolesToCreate = profiles.map((profile, index) => {
-          // Define role as an explicit AppRole type
-          const role: AppRole = index === 0 ? "super_admin" : index < 3 ? "subscriber" : "visitor";
-          return {
-            user_id: profile.id,
-            role: role
-          };
-        });
-        
-        const { error } = await supabase
-          .from("user_roles")
-          .insert(userRolesToCreate);
-          
-        if (error) throw error;
-        
-        toast({
-          title: "Utilisateurs démo créés",
-          description: "Des utilisateurs démo ont été créés pour la démonstration",
-        });
-      } else {
-        console.log("Aucun profil trouvé pour créer des utilisateurs de démo");
-      }
-    } catch (error: any) {
-      console.error("Error creating demo users:", error);
     }
   };
 
@@ -168,10 +128,17 @@ export const UserManagement = () => {
         .from("modules")
         .select("*");
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       setModules(data || []);
     } catch (error: any) {
       console.error("Error fetching modules:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les modules",
+        variant: "destructive",
+      });
     }
   };
 
@@ -181,7 +148,9 @@ export const UserManagement = () => {
         .from("user_modules")
         .select("user_id, module_id");
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       // Group user modules by user_id
       const modulesByUser: {[key: string]: string[]} = {};
@@ -195,6 +164,11 @@ export const UserManagement = () => {
       setUserModules(modulesByUser);
     } catch (error: any) {
       console.error("Error fetching user modules:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les modules utilisateur",
+        variant: "destructive",
+      });
     }
   };
 
@@ -301,6 +275,10 @@ export const UserManagement = () => {
       {isLoading ? (
         <div className="flex justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-8 text-red-500">
+          {error}
         </div>
       ) : users.length > 0 ? (
         <UsersTable 

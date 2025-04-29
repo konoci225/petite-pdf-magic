@@ -48,6 +48,22 @@ export const useModuleService = () => {
 
   const createDefaultModules = async () => {
     try {
+      console.log("Vérification si des modules existent déjà");
+      const { data: existingModules, error: checkError } = await supabase
+        .from("modules")
+        .select("id")
+        .limit(1);
+      
+      if (checkError) {
+        throw checkError;
+      }
+      
+      // Only create default modules if none exist
+      if (existingModules && existingModules.length > 0) {
+        console.log("Des modules existent déjà, pas besoin d'en créer par défaut");
+        return true;
+      }
+      
       console.log("Création des modules par défaut");
       // Définition de tous les modules PDF
       const defaultModules = [
@@ -66,43 +82,7 @@ export const useModuleService = () => {
         {
           module_name: "Module OCR",
           description: "Reconnaissance optique de caractères pour les documents scannés",
-          is_active: true,
-          is_premium: true,
-        },
-        {
-          module_name: "Module Compression PDF",
-          description: "Compression de fichiers PDF",
-          is_active: true,
-          is_premium: false,
-        },
-        {
-          module_name: "Module Fusion PDF",
-          description: "Fusion de plusieurs fichiers PDF en un seul document",
-          is_active: true,
-          is_premium: false,
-        },
-        {
-          module_name: "Module Division PDF",
-          description: "Division d'un fichier PDF en plusieurs documents",
-          is_active: true,
-          is_premium: false,
-        },
-        {
-          module_name: "Module Signature PDF",
-          description: "Signature électronique de documents PDF",
-          is_active: true,
-          is_premium: true,
-        },
-        {
-          module_name: "Module Protection PDF",
-          description: "Protection de documents PDF par mot de passe",
-          is_active: true,
-          is_premium: true,
-        },
-        {
-          module_name: "Module Filigrane PDF",
-          description: "Ajout de filigranes aux documents PDF",
-          is_active: true,
+          is_active: false,
           is_premium: true,
         }
       ];
@@ -116,13 +96,18 @@ export const useModuleService = () => {
       }
       
       toast({
-        title: "Modules par défaut créés",
-        description: "Des modules par défaut ont été créés pour démonstration",
+        title: "Modules initiaux créés",
+        description: "Des modules de base ont été créés pour démarrer",
       });
 
       return true;
     } catch (error: any) {
       console.error("Error creating default modules:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer les modules par défaut: " + error.message,
+        variant: "destructive",
+      });
       return false;
     }
   };

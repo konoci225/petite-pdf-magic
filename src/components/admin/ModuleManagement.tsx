@@ -7,6 +7,7 @@ import ModulesTable from "./modules/ModulesTable";
 import ModuleForm from "./modules/ModuleForm";
 import ModuleDeleteDialog from "./modules/ModuleDeleteDialog";
 import { useModuleService, Module, ModuleFormData } from "./modules/ModuleService";
+import { useToast } from "@/hooks/use-toast";
 
 export const ModuleManagement = () => {
   const [modules, setModules] = useState<Module[]>([]);
@@ -14,6 +15,7 @@ export const ModuleManagement = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedModule, setSelectedModule] = useState<Module | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState<ModuleFormData>({
     module_name: "",
     description: "",
@@ -22,19 +24,34 @@ export const ModuleManagement = () => {
   });
   
   const moduleService = useModuleService();
+  const { toast } = useToast();
 
   const fetchModules = async () => {
     setIsLoading(true);
-    const fetchedModules = await moduleService.fetchModules();
+    setError(null);
     
-    if (!fetchedModules || fetchedModules.length === 0) {
-      await moduleService.createDefaultModules();
-      const refreshedModules = await moduleService.fetchModules();
-      setModules(refreshedModules);
-    } else {
-      setModules(fetchedModules);
+    try {
+      const fetchedModules = await moduleService.fetchModules();
+      
+      if (fetchedModules.length === 0) {
+        // Create default modules only if no modules exist
+        await moduleService.createDefaultModules();
+        const refreshedModules = await moduleService.fetchModules();
+        setModules(refreshedModules);
+      } else {
+        setModules(fetchedModules);
+      }
+    } catch (err: any) {
+      console.error("Failed to fetch modules:", err);
+      setError("Impossible de charger les modules: " + err.message);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les modules",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -122,6 +139,10 @@ export const ModuleManagement = () => {
       {isLoading ? (
         <div className="flex justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-8 text-red-500">
+          {error}
         </div>
       ) : modules.length > 0 ? (
         <ModulesTable

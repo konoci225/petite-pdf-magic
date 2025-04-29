@@ -21,57 +21,67 @@ export interface Module {
 
 export const useUserService = () => {
   const { toast } = useToast();
-  
+
   const fetchUsers = async (): Promise<User[]> => {
     try {
       console.log("Récupération des utilisateurs...");
       
-      // Get all profiles
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id");
-        
-      if (profilesError) {
-        throw profilesError;
-      }
-      
-      console.log("Profiles récupérés:", profiles);
-      
-      if (!profiles || profiles.length === 0) {
-        return [];
-      }
-      
-      // Récupérer les rôles des utilisateurs
+      // Get user_roles first since we can access this directly
       const { data: userRoles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
-
+      
       if (rolesError) {
+        console.error("Erreur lors de la récupération des rôles:", rolesError);
         throw rolesError;
       }
       
-      console.log("Rôles utilisateurs récupérés:", userRoles);
+      if (!userRoles || userRoles.length === 0) {
+        console.log("Aucun utilisateur trouvé.");
+        return [];
+      }
       
-      // Create a map of user IDs to emails (using fake emails for now)
-      const emails: {[key: string]: string} = {};
-      profiles.forEach(profile => {
-        emails[profile.id] = `user-${profile.id.substring(0, 8)}@example.com`;
-      });
+      console.log(`Trouvé ${userRoles.length} roles d'utilisateurs`);
       
-      // Créer un mapping des rôles d'utilisateur par ID
-      const roleMap: {[key: string]: AppRole} = {};
-      userRoles?.forEach(ur => {
-        roleMap[ur.user_id] = ur.role as AppRole;
-      });
+      // For each user_id in user_roles, try to get auth info
+      const formattedUsers: User[] = [];
       
-      // Generate user objects from profiles and roles
-      const users: User[] = profiles.map(profile => ({
-        id: profile.id,
-        email: emails[profile.id] || `user-${profile.id.substring(0, 8)}@example.com`,
-        role: roleMap[profile.id] || "visitor" as AppRole
-      }));
+      for (const userRole of userRoles) {
+        // Try to get user email from auth if possible
+        try {
+          // This function might not work as expected in the client side
+          // It's usually restricted to server-side or admin access
+          const { data, error: authError } = await supabase.auth.admin.getUserById(userRole.user_id);
+          
+          if (authError) {
+            console.warn(`Impossible de récupérer l'utilisateur auth pour ${userRole.user_id}: ${authError.message}`);
+            // Fall back to a generated email
+            formattedUsers.push({
+              id: userRole.user_id,
+              email: `utilisateur-${userRole.user_id.substring(0, 6)}@exemple.com`,
+              role: userRole.role as AppRole
+            });
+          } else if (data && data.user) {
+            // If we found the auth user, use their email
+            formattedUsers.push({
+              id: userRole.user_id,
+              email: data.user.email || `utilisateur-${userRole.user_id.substring(0, 6)}@exemple.com`,
+              role: userRole.role as AppRole
+            });
+          }
+        } catch (error) {
+          console.warn(`Erreur pour l'utilisateur ${userRole.user_id}:`, error);
+          // Fall back to a generated email
+          formattedUsers.push({
+            id: userRole.user_id,
+            email: `utilisateur-${userRole.user_id.substring(0, 6)}@exemple.com`,
+            role: userRole.role as AppRole
+          });
+        }
+      }
       
-      return users;
+      console.log("Utilisateurs formatés:", formattedUsers);
+      return formattedUsers;
     } catch (error: any) {
       console.error("Error fetching users:", error);
       toast({
@@ -80,52 +90,6 @@ export const useUserService = () => {
         variant: "destructive",
       });
       return [];
-    }
-  };
-  
-  const createDemoUsers = async () => {
-    try {
-      console.log("Création d'utilisateurs de démo...");
-      
-      // Fetch profiles to use as demo users
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id")
-        .limit(5);
-        
-      if (profilesError) throw profilesError;
-      
-      console.log("Profils pour démo:", profiles);
-      
-      if (profiles && profiles.length > 0) {
-        // Create user roles for each profile
-        const userRolesToCreate = profiles.map((profile, index) => {
-          // Define role as an explicit AppRole type
-          const role: AppRole = index === 0 ? "super_admin" : index < 3 ? "subscriber" : "visitor";
-          return {
-            user_id: profile.id,
-            role: role
-          };
-        });
-        
-        const { error } = await supabase
-          .from("user_roles")
-          .insert(userRolesToCreate);
-          
-        if (error) throw error;
-        
-        toast({
-          title: "Utilisateurs démo créés",
-          description: "Des utilisateurs démo ont été créés pour la démonstration",
-        });
-        return true;
-      } else {
-        console.log("Aucun profil trouvé pour créer des utilisateurs de démo");
-        return false;
-      }
-    } catch (error: any) {
-      console.error("Error creating demo users:", error);
-      return false;
     }
   };
 
@@ -139,6 +103,11 @@ export const useUserService = () => {
       return data || [];
     } catch (error: any) {
       console.error("Error fetching modules:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les modules",
+        variant: "destructive",
+      });
       return [];
     }
   };
@@ -163,11 +132,16 @@ export const useUserService = () => {
       return modulesByUser;
     } catch (error: any) {
       console.error("Error fetching user modules:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les modules utilisateur",
+        variant: "destructive",
+      });
       return {};
     }
   };
 
-  const saveUserModules = async (userId: string, moduleIds: string[]): Promise<boolean> => {
+  const saveUserModules = async (userId: string, selectedModules: string[]): Promise<boolean> => {
     try {
       // First, delete all existing user modules
       const { error: deleteError } = await supabase
@@ -178,8 +152,8 @@ export const useUserService = () => {
       if (deleteError) throw deleteError;
 
       // Then insert new ones
-      if (moduleIds.length > 0) {
-        const userModulesToInsert = moduleIds.map((moduleId) => ({
+      if (selectedModules.length > 0) {
+        const userModulesToInsert = selectedModules.map((moduleId) => ({
           user_id: userId,
           module_id: moduleId,
         }));
@@ -195,6 +169,7 @@ export const useUserService = () => {
         title: "Succès",
         description: "Modules de l'utilisateur mis à jour",
       });
+      
       return true;
     } catch (error: any) {
       toast({
@@ -209,9 +184,8 @@ export const useUserService = () => {
 
   return {
     fetchUsers,
-    createDemoUsers,
     fetchModules,
     fetchUserModules,
-    saveUserModules,
+    saveUserModules
   };
 };

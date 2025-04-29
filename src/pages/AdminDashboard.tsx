@@ -5,7 +5,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModuleManagement } from "@/components/admin/ModuleManagement";
 import { UserManagement } from "@/components/admin/UserManagement";
-import { Loader2 } from "lucide-react";
+import { SubscriptionManagement } from "@/components/admin/SubscriptionManagement";
+import { AdminDashboardHeader } from "@/components/admin/AdminDashboardHeader";
+import { AdminDashboardLoader } from "@/components/admin/AdminDashboardLoader";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Navigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -21,9 +23,6 @@ const AdminDashboard = () => {
       try {
         // Vérifier si les tables requises existent
         await ensureTablesExist();
-        
-        // Ensure demo data exists
-        await ensureDemoDataExists();
         
         // In a real app, you might check more detailed permissions here
         setTimeout(() => {
@@ -43,7 +42,7 @@ const AdminDashboard = () => {
     if (!roleLoading) {
       checkAccess();
     }
-  }, [roleLoading]);
+  }, [roleLoading, toast]);
 
   // Fonction pour s'assurer que les tables nécessaires existent
   const ensureTablesExist = async () => {
@@ -86,54 +85,19 @@ const AdminDashboard = () => {
     }
   };
 
-  // Ensure we have at least some demo data for modules and users
-  const ensureDemoDataExists = async () => {
-    // Check if we have modules
-    const { data: modules, error: modulesError } = await supabase
-      .from('modules')
-      .select('id')
-      .limit(1);
-      
-    if (modulesError) {
-      console.error("Error checking for modules:", modulesError);
-    } else if (!modules || modules.length === 0) {
-      console.log("No modules found, creating demo modules...");
-      // Let the ModuleManagement component create the default modules
-    }
-    
-    // Check if we have user roles
-    const { data: userRoles, error: userRolesError } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .limit(1);
-      
-    if (userRolesError) {
-      console.error("Error checking for user roles:", userRolesError);
-    } else if (!userRoles || userRoles.length === 0) {
-      console.log("No user roles found, need to create demo users...");
-      // UserManagement component will handle creating demo users if needed
-    }
-  };
-
   // Redirect if not super_admin
   if (!roleLoading && role !== "super_admin") {
     return <Navigate to="/dashboard" />;
   }
 
   if (isLoading || roleLoading) {
-    return (
-      <Layout>
-        <div className="container mx-auto py-8 flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </Layout>
-    );
+    return <AdminDashboardLoader />;
   }
 
   return (
     <Layout>
       <div className="container mx-auto py-8">
-        <h1 className="text-3xl font-bold mb-6">Tableau de bord administrateur</h1>
+        <AdminDashboardHeader />
         
         <Tabs defaultValue="modules" className="w-full">
           <TabsList className="mb-6">
@@ -151,11 +115,7 @@ const AdminDashboard = () => {
           </TabsContent>
           
           <TabsContent value="subscriptions">
-            <div className="bg-white shadow rounded-lg p-6">
-              <h2 className="text-xl font-semibold mb-4">Gestion des abonnements</h2>
-              <p className="text-gray-500">Ajoutez, modifiez ou supprimez des abonnements utilisateur ici.</p>
-              <p className="text-gray-500 mt-4">Fonctionnalité à implémenter.</p>
-            </div>
+            <SubscriptionManagement />
           </TabsContent>
         </Tabs>
       </div>
