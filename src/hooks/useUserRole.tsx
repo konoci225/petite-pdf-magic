@@ -22,25 +22,41 @@ export const useUserRole = () => {
       }
 
       try {
-        const { data, error } = await supabase
+        // First, check if user has a role in user_roles table
+        const { data: userData, error: userError } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (error) {
-          console.error("Erreur lors de la récupération du rôle:", error);
-          toast({
-            title: "Erreur",
-            description: "Impossible de récupérer votre rôle",
-            variant: "destructive",
-          });
-          setRole("visitor"); // Default to visitor on error
-        } else {
-          setRole(data?.role || "visitor"); // Default to visitor if no role found
+        if (userError) {
+          throw userError;
         }
-      } catch (error) {
+
+        if (userData && userData.role) {
+          setRole(userData.role);
+          setIsLoading(false);
+          return;
+        }
+
+        // If no role found, set a default role and create one
+        console.log("No role found for user, creating default role...");
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: user.id, role: "visitor" });
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        setRole("visitor");
+      } catch (error: any) {
         console.error("Erreur lors de la récupération du rôle:", error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de récupérer votre rôle",
+          variant: "destructive",
+        });
         setRole("visitor"); // Default to visitor on error
       } finally {
         setIsLoading(false);

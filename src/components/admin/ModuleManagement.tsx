@@ -1,30 +1,12 @@
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
 import { Dialog } from "@/components/ui/dialog";
 import ModulesTable from "./modules/ModulesTable";
 import ModuleForm from "./modules/ModuleForm";
 import ModuleDeleteDialog from "./modules/ModuleDeleteDialog";
-
-interface Module {
-  id: string;
-  module_name: string;
-  description: string | null;
-  is_active: boolean;
-  is_premium: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-interface ModuleFormData {
-  module_name: string;
-  description: string;
-  is_active: boolean;
-  is_premium: boolean;
-}
+import { useModuleService, Module, ModuleFormData } from "./modules/ModuleService";
 
 export const ModuleManagement = () => {
   const [modules, setModules] = useState<Module[]>([]);
@@ -38,134 +20,26 @@ export const ModuleManagement = () => {
     is_active: true,
     is_premium: false,
   });
-  const { toast } = useToast();
+  
+  const moduleService = useModuleService();
 
   const fetchModules = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Modification ici: récupérer les modules sans filtrer par utilisateur
-      const { data, error } = await supabase
-        .from("modules")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        throw error;
-      }
-      
-      console.log("Modules récupérés:", data);
-      
-      if (!data || data.length === 0) {
-        await createDefaultModules();
-        
-        const { data: refreshedData, error: refreshError } = await supabase
-          .from("modules")
-          .select("*")
-          .order("created_at", { ascending: false });
-          
-        if (refreshError) throw refreshError;
-        console.log("Modules créés par défaut:", refreshedData);
-        setModules(refreshedData || []);
-      } else {
-        setModules(data);
-      }
-    } catch (error: any) {
-      console.error("Error fetching modules:", error);
-      // Modification: affichage de l'erreur complète
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger les modules: " + error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+    setIsLoading(true);
+    const fetchedModules = await moduleService.fetchModules();
+    
+    if (!fetchedModules || fetchedModules.length === 0) {
+      await moduleService.createDefaultModules();
+      const refreshedModules = await moduleService.fetchModules();
+      setModules(refreshedModules);
+    } else {
+      setModules(fetchedModules);
     }
-  };
-
-  const createDefaultModules = async () => {
-    try {
-      console.log("Création des modules par défaut");
-      // Définition de tous les modules PDF
-      const defaultModules = [
-        {
-          module_name: "Module PDF Basic",
-          description: "Fonctionnalités de base pour la manipulation de fichiers PDF",
-          is_active: true,
-          is_premium: false,
-        },
-        {
-          module_name: "Module PDF Advanced",
-          description: "Fonctionnalités avancées pour la manipulation de fichiers PDF",
-          is_active: true,
-          is_premium: true,
-        },
-        {
-          module_name: "Module OCR",
-          description: "Reconnaissance optique de caractères pour les documents scannés",
-          is_active: true,
-          is_premium: true,
-        },
-        {
-          module_name: "Module Compression PDF",
-          description: "Compression de fichiers PDF",
-          is_active: true,
-          is_premium: false,
-        },
-        {
-          module_name: "Module Fusion PDF",
-          description: "Fusion de plusieurs fichiers PDF en un seul document",
-          is_active: true,
-          is_premium: false,
-        },
-        {
-          module_name: "Module Division PDF",
-          description: "Division d'un fichier PDF en plusieurs documents",
-          is_active: true,
-          is_premium: false,
-        },
-        {
-          module_name: "Module Signature PDF",
-          description: "Signature électronique de documents PDF",
-          is_active: true,
-          is_premium: true,
-        },
-        {
-          module_name: "Module Protection PDF",
-          description: "Protection de documents PDF par mot de passe",
-          is_active: true,
-          is_premium: true,
-        },
-        {
-          module_name: "Module Filigrane PDF",
-          description: "Ajout de filigranes aux documents PDF",
-          is_active: true,
-          is_premium: true,
-        }
-      ];
-      
-      // Insertion des modules par défaut
-      const { error } = await supabase.from("modules").insert(defaultModules);
-      
-      if (error) {
-        console.error("Erreur lors de la création des modules par défaut:", error);
-        throw error;
-      }
-      
-      toast({
-        title: "Modules par défaut créés",
-        description: "Des modules par défaut ont été créés pour démonstration",
-      });
-    } catch (error: any) {
-      console.error("Error creating default modules:", error);
-    }
+    setIsLoading(false);
   };
 
   useEffect(() => {
     fetchModules();
   }, []);
-
-  // ... garder le code existant pour les gestionnaires d'événements
 
   const handleOpenCreateDialog = () => {
     setSelectedModule(null);
@@ -207,106 +81,31 @@ export const ModuleManagement = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      if (selectedModule) {
-        const { error } = await supabase
-          .from("modules")
-          .update({
-            module_name: formData.module_name,
-            description: formData.description || null,
-            is_active: formData.is_active,
-            is_premium: formData.is_premium,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", selectedModule.id);
-
-        if (error) throw error;
-        toast({
-          title: "Succès",
-          description: "Module mis à jour avec succès",
-        });
-      } else {
-        const { error } = await supabase.from("modules").insert({
-          module_name: formData.module_name,
-          description: formData.description || null,
-          is_active: formData.is_active,
-          is_premium: formData.is_premium,
-        });
-
-        if (error) throw error;
-        toast({
-          title: "Succès",
-          description: "Module créé avec succès",
-        });
-      }
-
+    const success = await moduleService.saveModule(
+      formData, 
+      selectedModule?.id
+    );
+    
+    if (success) {
       setIsDialogOpen(false);
       fetchModules();
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
-      console.error("Error saving module:", error);
     }
   };
 
   const handleDelete = async () => {
     if (!selectedModule) return;
-
-    try {
-      // Suppression des relations user_modules d'abord
-      const { error: userModulesError } = await supabase
-        .from("user_modules")
-        .delete()
-        .eq("module_id", selectedModule.id);
-
-      if (userModulesError) throw userModulesError;
-
-      // Puis suppression du module
-      const { error } = await supabase
-        .from("modules")
-        .delete()
-        .eq("id", selectedModule.id);
-
-      if (error) throw error;
-
-      toast({
-        title: "Succès",
-        description: "Module supprimé avec succès",
-      });
+    
+    const success = await moduleService.deleteModule(selectedModule.id);
+    if (success) {
       setIsDeleteDialogOpen(false);
       fetchModules();
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
-      console.error("Error deleting module:", error);
     }
   };
 
   const handleToggleActive = async (module: Module) => {
-    try {
-      const { error } = await supabase
-        .from("modules")
-        .update({
-          is_active: !module.is_active,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", module.id);
-
-      if (error) throw error;
+    const success = await moduleService.toggleModuleActive(module);
+    if (success) {
       fetchModules();
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour le statut du module",
-        variant: "destructive",
-      });
-      console.error("Error toggling module status:", error);
     }
   };
 
