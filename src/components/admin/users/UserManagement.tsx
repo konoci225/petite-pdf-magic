@@ -33,16 +33,7 @@ export const UserManagement = () => {
 
   const fetchUsers = async () => {
     const fetchedUsers = await userService.fetchUsers();
-    
-    if (fetchedUsers.length === 0) {
-      // If no users found, create demo users
-      await userService.createDemoUsers();
-      // Fetch users again after creating demo users
-      const refreshedUsers = await userService.fetchUsers();
-      setUsers(refreshedUsers);
-    } else {
-      setUsers(fetchedUsers);
-    }
+    setUsers(fetchedUsers);
   };
 
   const fetchModules = async () => {

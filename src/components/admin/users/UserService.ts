@@ -49,8 +49,6 @@ export const useUserService = () => {
       for (const userRole of userRoles) {
         // Try to get user email from auth if possible
         try {
-          // This function might not work as expected in the client side
-          // It's usually restricted to server-side or admin access
           const { data, error: authError } = await supabase.auth.admin.getUserById(userRole.user_id);
           
           if (authError) {
@@ -91,6 +89,13 @@ export const useUserService = () => {
       });
       return [];
     }
+  };
+
+  const createDemoUsers = async (): Promise<User[]> => {
+    // Since we're being asked to only show real data and not test data,
+    // this function will now just return an empty array
+    console.log("La création d'utilisateurs de démonstration est désactivée.");
+    return [];
   };
 
   const fetchModules = async (): Promise<Module[]> => {
@@ -186,6 +191,7 @@ export const useUserService = () => {
     fetchUsers,
     fetchModules,
     fetchUserModules,
-    saveUserModules
+    saveUserModules,
+    createDemoUsers
   };
 };
