@@ -4,23 +4,28 @@ import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModuleManagement } from "@/components/admin/ModuleManagement";
-import { UserManagement } from "@/components/admin/UserManagement";
+import { UserManagement } from "@/components/admin/users/UserManagement";
 import { SubscriptionManagement } from "@/components/admin/SubscriptionManagement";
 import { AdminDashboardHeader } from "@/components/admin/AdminDashboardHeader";
 import { AdminDashboardLoader } from "@/components/admin/AdminDashboardLoader";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useAuth } from "@/providers/AuthProvider";
 import { Navigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
 const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { role, isLoading: roleLoading } = useUserRole();
+  const { user } = useAuth();
   const { toast } = useToast();
+
+  console.log("AdminDashboard - Current user:", user?.id, "Role:", role, "Loading:", isLoading);
 
   useEffect(() => {
     const checkAccess = async () => {
       setIsLoading(true);
       try {
+        console.log("Checking database tables access...");
         // Vérifier si les tables requises existent
         await ensureTablesExist();
         
@@ -39,14 +44,16 @@ const AdminDashboard = () => {
       }
     };
     
-    if (!roleLoading) {
+    if (!roleLoading && user) {
+      console.log("Role loading completed, checking access...");
       checkAccess();
     }
-  }, [roleLoading, toast]);
+  }, [roleLoading, user, toast]);
 
   // Fonction pour s'assurer que les tables nécessaires existent
   const ensureTablesExist = async () => {
     try {
+      console.log("Checking required tables...");
       // Vérifier l'existence de la table modules
       const { error: modulesError } = await supabase
         .from('modules')
@@ -79,18 +86,34 @@ const AdminDashboard = () => {
         console.error("Erreur lors de la vérification de la table user_modules:", userModulesError);
         throw new Error("La table user_modules est inaccessible");
       }
+      
+      console.log("All required tables exist and are accessible.");
     } catch (error) {
       console.error("Error checking tables:", error);
       throw error;
     }
   };
 
+  // Show loading screen when role is still loading
+  if (roleLoading) {
+    console.log("Role still loading...");
+    return <AdminDashboardLoader />;
+  }
+
   // Redirect if not super_admin
   if (!roleLoading && role !== "super_admin") {
+    console.log("User is not super_admin, redirecting...");
+    toast({
+      title: "Accès refusé",
+      description: "Vous n'avez pas les permissions d'administrateur",
+      variant: "destructive"
+    });
     return <Navigate to="/dashboard" />;
   }
 
-  if (isLoading || roleLoading) {
+  // Show loading screen while checking tables
+  if (isLoading) {
+    console.log("Checking table access...");
     return <AdminDashboardLoader />;
   }
 

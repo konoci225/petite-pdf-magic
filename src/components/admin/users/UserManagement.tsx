@@ -15,6 +15,7 @@ export const UserManagement = () => {
   const [modules, setModules] = useState<Module[]>([]);
   const [userModules, setUserModules] = useState<{[key: string]: string[]}>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
@@ -23,27 +24,45 @@ export const UserManagement = () => {
 
   const fetchData = async () => {
     setIsLoading(true);
-    await Promise.all([
-      fetchUsers(),
-      fetchModules(),
-      fetchUserModules(),
-    ]);
-    setIsLoading(false);
+    setError(null);
+    
+    try {
+      await Promise.all([
+        fetchUsers(),
+        fetchModules(),
+        fetchUserModules(),
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const fetchUsers = async () => {
-    const fetchedUsers = await userService.fetchUsers();
-    setUsers(fetchedUsers);
+    try {
+      const fetchedUsers = await userService.fetchUsers();
+      setUsers(fetchedUsers);
+    } catch (error: any) {
+      console.error("Error in fetchUsers:", error);
+      setError("Impossible de charger les utilisateurs: " + error.message);
+    }
   };
 
   const fetchModules = async () => {
-    const fetchedModules = await userService.fetchModules();
-    setModules(fetchedModules);
+    try {
+      const fetchedModules = await userService.fetchModules();
+      setModules(fetchedModules);
+    } catch (error: any) {
+      console.error("Error fetching modules:", error);
+    }
   };
 
   const fetchUserModules = async () => {
-    const fetchedUserModules = await userService.fetchUserModules();
-    setUserModules(fetchedUserModules);
+    try {
+      const fetchedUserModules = await userService.fetchUserModules();
+      setUserModules(fetchedUserModules);
+    } catch (error: any) {
+      console.error("Error fetching user modules:", error);
+    }
   };
 
   useEffect(() => {
@@ -117,6 +136,10 @@ export const UserManagement = () => {
       {isLoading ? (
         <div className="flex justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-8 text-red-500">
+          {error}
         </div>
       ) : users.length > 0 ? (
         <UsersTable 

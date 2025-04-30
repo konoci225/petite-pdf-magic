@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/providers/AuthProvider";
+import { Loader2 } from "lucide-react";
 
 const AuthPage = () => {
   const [email, setEmail] = useState("");
@@ -17,9 +18,12 @@ const AuthPage = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  console.log("AuthPage - Current user:", user?.id);
+
   // Redirect if already logged in
   useEffect(() => {
     if (user) {
+      console.log("User already logged in, redirecting to home");
       navigate("/");
     }
   }, [user, navigate]);
@@ -28,12 +32,16 @@ const AuthPage = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signUp({
+      console.log("Attempting signup with email:", email);
+      
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (error) throw error;
+      
+      console.log("Signup successful:", data);
 
       toast({
         title: "Inscription réussie",
@@ -43,12 +51,12 @@ const AuthPage = () => {
       // Automatically navigate to home page after successful signup
       navigate("/");
     } catch (error: any) {
+      console.error("Signup error:", error);
       toast({
         title: "Erreur lors de l'inscription",
         description: error.message,
         variant: "destructive",
       });
-      console.error("Signup error:", error);
     } finally {
       setLoading(false);
     }
@@ -58,17 +66,17 @@ const AuthPage = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const { data: authData, error } = await supabase.auth.signInWithPassword({
+      console.log("Attempting login with email:", email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
 
-      console.log("Authentication successful:", authData);
+      console.log("Authentication successful:", data);
 
-      // No need to manually fetch role here, the useUserRole hook will handle it
-      // Just redirect to home page, and role-based redirection will be handled there
       toast({
         title: "Connexion réussie",
         description: "Bienvenue sur votre espace personnel",
@@ -76,12 +84,12 @@ const AuthPage = () => {
       
       navigate("/");
     } catch (error: any) {
+      console.error("Login error:", error);
       toast({
         title: "Erreur de connexion",
         description: error.message,
         variant: "destructive",
       });
-      console.error("Login error:", error);
     } finally {
       setLoading(false);
     }
@@ -123,7 +131,14 @@ const AuthPage = () => {
                   required
                 />
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Connexion..." : "Se connecter"}
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Connexion...
+                    </>
+                  ) : (
+                    "Se connecter"
+                  )}
                 </Button>
               </form>
             </TabsContent>
@@ -144,7 +159,14 @@ const AuthPage = () => {
                   required
                 />
                 <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Inscription..." : "S'inscrire"}
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Inscription...
+                    </>
+                  ) : (
+                    "S'inscrire"
+                  )}
                 </Button>
               </form>
             </TabsContent>

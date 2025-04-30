@@ -5,10 +5,13 @@ import { useAuth } from "./AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Database } from "@/integrations/supabase/types";
+
+type AppRole = Database["public"]["Enums"]["app_role"];
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  allowedRoles?: ("super_admin" | "subscriber" | "visitor")[];
+  allowedRoles?: AppRole[];
 }
 
 export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
@@ -16,6 +19,14 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
   const { role, isLoading } = useUserRole();
   const location = useLocation();
   const { toast } = useToast();
+
+  console.log("ProtectedRoute check:", { 
+    user: user?.id, 
+    role, 
+    isLoading, 
+    allowedRoles,
+    hasPermission: role && allowedRoles ? allowedRoles.includes(role) : true
+  });
 
   if (isLoading) {
     return (
@@ -31,7 +42,9 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   // If roles are specified and user's role is not in allowed roles, redirect to home
-  if (allowedRoles && role && !allowedRoles.includes(role)) {
+  if (allowedRoles && allowedRoles.length > 0 && role && !allowedRoles.includes(role)) {
+    console.error(`Access denied: User has role ${role}, but needs one of ${allowedRoles.join(', ')}`);
+    
     toast({
       title: "Accès non autorisé",
       description: "Vous n'avez pas les permissions requises.",
