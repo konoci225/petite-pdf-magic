@@ -1,18 +1,15 @@
 
 import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
-import * as RovingFocusPrimitive from "@radix-ui/react-roving-focus"
 
 import { cn } from "@/lib/utils"
 
 const Tabs = TabsPrimitive.Root
 
-// Correction: Utiliser correctement le RovingFocusGroup en supprimant la duplication
 const TabsList = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.List>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
 >(({ className, ...props }, ref) => (
-  // Nous gardons un seul RovingFocusGroup ici, pas à l'intérieur de chaque TabsTrigger
   <TabsPrimitive.List
     ref={ref}
     className={cn(
@@ -28,7 +25,6 @@ const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
 >(({ className, ...props }, ref) => (
-  // Supprime RovingFocusPrimitive.Item car il doit être utilisé dans un RovingFocusGroup
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(

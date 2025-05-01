@@ -4,7 +4,7 @@ import App from './App.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary'; 
 import './index.css'
 
-// Add error monitoring for React component errors
+// Add error monitoring for React component errors without testing void expressions
 const originalConsoleError = console.error;
 console.error = function(...args) {
   // Log the original error
