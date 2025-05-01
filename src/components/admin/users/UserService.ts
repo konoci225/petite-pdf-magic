@@ -2,10 +2,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { User, Module, AppRole } from "./types";
-
-// Export these types for other components to use
-export { User, Module, AppRole };
+import { User, AppRole } from "./types";
 
 export const useUserService = () => {
   const { toast } = useToast();

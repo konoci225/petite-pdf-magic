@@ -6,9 +6,9 @@ import { useToast } from "@/hooks/use-toast";
 import UsersTable from "./UsersTable";
 import UserModulesDialog from "./UserModulesDialog";
 import UserRoleDialog from "./UserRoleDialog";
-import { useUserService, User, AppRole } from "./UserService";
+import { useUserService } from "./UserService";
 import { useModuleService } from "./ModuleService";
-import { Module } from "./types";
+import { User, AppRole, Module } from "./types";
 
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
