@@ -57,7 +57,6 @@ export const useUserService = () => {
           // Retrieve the user's email from auth.users using RPC function if available
           // Note: This method won't work client-side as it requires admin access
           // For production, you would need to create a server-side function or API
-          // But for now, we'll use a placeholder email based on the user ID
           
           // Generate a placeholder email for the user
           const placeholderEmail = `user-${userRole.user_id.substring(0, 8)}@example.com`;
