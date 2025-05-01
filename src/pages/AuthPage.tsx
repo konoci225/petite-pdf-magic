@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -163,44 +164,234 @@ const AuthPage = () => {
 
             {/* Connexion */}
             <TabsContent value="signin">
-              <Form {...loginForm} onSubmit={loginForm.handleSubmit(handleSignIn)}>
-                <FormField control={loginForm.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl><Input {...field} placeholder="Votre email" /></FormControl>
-                  </FormItem>
-                )} />
+              <Form {...loginForm}>
+                <form onSubmit={loginForm.handleSubmit(handleSignIn)} className="space-y-4">
+                  <FormField
+                    control={loginForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-10" placeholder="Votre email" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <FormField control={loginForm.control} name="password" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Mot de passe</FormLabel>
-                    <FormControl>
-                      <Input type={showPassword ? "text" : "password"} {...field} placeholder="Votre mot de passe" />
-                    </FormControl>
-                    <button type="button" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOff /> : <Eye />}</button>
-                  </FormItem>
-                )} />
+                  <FormField
+                    control={loginForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mot de passe</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              className="pl-10 pr-10"
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Votre mot de passe"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-2.5 text-muted-foreground"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                <Button type="submit" disabled={loading}>
-                  {loading ? <Loader2 className="mr-2 animate-spin" /> : "Se connecter"}
-                </Button>
+                  <div className="flex items-center justify-between">
+                    <FormField
+                      control={loginForm.control}
+                      name="rememberMe"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center space-x-2 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormLabel className="text-sm">Se souvenir de moi</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleForgotPassword}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      Mot de passe oublié?
+                    </button>
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
+                    Se connecter
+                  </Button>
+                </form>
               </Form>
             </TabsContent>
 
             {/* Inscription */}
             <TabsContent value="signup">
-              <Form {...registerForm} onSubmit={registerForm.handleSubmit(handleSignUp)}>
-                {/* Form fields for registration */}
-                <FormField control={registerForm.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl><Input {...field} placeholder="Votre email" /></FormControl>
-                  </FormItem>
-                )} />
-                {/* Other fields like password, confirm password, and accept terms */}
-                <Button type="submit" disabled={loading}>
-                  {loading ? <Loader2 className="mr-2 animate-spin" /> : "S'inscrire"}
-                </Button>
+              <Form {...registerForm}>
+                <form onSubmit={registerForm.handleSubmit(handleSignUp)} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={registerForm.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nom</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Votre nom" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={registerForm.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Prénom</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Votre prénom" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <FormField
+                    control={registerForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input className="pl-10" placeholder="Votre email" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={registerForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mot de passe</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              className="pl-10 pr-10"
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Votre mot de passe"
+                              {...field}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                handlePasswordChange(e);
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-2.5 text-muted-foreground"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <div className="mt-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs">Force du mot de passe:</span>
+                            <span className={`text-xs ${getPasswordStrengthText().color}`}>
+                              {getPasswordStrengthText().text}
+                            </span>
+                          </div>
+                          <Progress value={passwordStrength} className={getProgressColor()} />
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={registerForm.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirmer le mot de passe</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              className="pl-10 pr-10"
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Confirmez votre mot de passe"
+                              {...field}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute right-3 top-2.5 text-muted-foreground"
+                            >
+                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={registerForm.control}
+                    name="acceptTerms"
+                    render={({ field }) => (
+                      <FormItem className="flex items-start space-x-2 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel className="text-sm">
+                            J'accepte les <a href="#" className="text-primary hover:underline">conditions générales</a>
+                          </FormLabel>
+                          <FormMessage />
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                    S'inscrire
+                  </Button>
+                </form>
               </Form>
             </TabsContent>
           </Tabs>
@@ -211,3 +402,4 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
+

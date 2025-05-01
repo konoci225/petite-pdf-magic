@@ -1,7 +1,6 @@
 
 import * as React from "react"
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group"
-import * as RovingFocusPrimitive from "@radix-ui/react-roving-focus"
 import { type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -19,17 +18,15 @@ const ToggleGroup = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Root> &
     VariantProps<typeof toggleVariants>
 >(({ className, variant, size, children, ...props }, ref) => (
-  <RovingFocusPrimitive.Root asChild>
-    <ToggleGroupPrimitive.Root
-      ref={ref}
-      className={cn("flex items-center justify-center gap-1", className)}
-      {...props}
-    >
-      <ToggleGroupContext.Provider value={{ variant, size }}>
-        {children}
-      </ToggleGroupContext.Provider>
-    </ToggleGroupPrimitive.Root>
-  </RovingFocusPrimitive.Root>
+  <ToggleGroupPrimitive.Root
+    ref={ref}
+    className={cn("flex items-center justify-center gap-1", className)}
+    {...props}
+  >
+    <ToggleGroupContext.Provider value={{ variant, size }}>
+      {children}
+    </ToggleGroupContext.Provider>
+  </ToggleGroupPrimitive.Root>
 ))
 
 ToggleGroup.displayName = ToggleGroupPrimitive.Root.displayName
@@ -42,21 +39,19 @@ const ToggleGroupItem = React.forwardRef<
   const context = React.useContext(ToggleGroupContext)
 
   return (
-    <RovingFocusPrimitive.Item asChild>
-      <ToggleGroupPrimitive.Item
-        ref={ref}
-        className={cn(
-          toggleVariants({
-            variant: context.variant || variant,
-            size: context.size || size,
-          }),
-          className
-        )}
-        {...props}
-      >
-        {children}
-      </ToggleGroupPrimitive.Item>
-    </RovingFocusPrimitive.Item>
+    <ToggleGroupPrimitive.Item
+      ref={ref}
+      className={cn(
+        toggleVariants({
+          variant: context.variant || variant,
+          size: context.size || size,
+        }),
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </ToggleGroupPrimitive.Item>
   )
 })
 
