@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -229,7 +230,7 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      {console.log('Rendering AuthPage JSX')}
+      {console.log('Rendering AuthPage JSX') || null}
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex justify-center mb-4">
@@ -243,9 +244,9 @@ const AuthPage = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
-            {console.log('Rendering Tabs component')}
+            {console.log('Rendering Tabs component') || null}
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              {console.log('Rendering TabsList component')}
+              {console.log('Rendering TabsList component') || null}
               <TabsTrigger value="signin">Connexion</TabsTrigger>
               <TabsTrigger value="signup">Inscription</TabsTrigger>
             </TabsList>
