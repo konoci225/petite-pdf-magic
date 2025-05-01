@@ -1,54 +1,62 @@
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { UserCog } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Database } from "@/integrations/supabase/types";
-
-type AppRole = Database["public"]["Enums"]["app_role"];
-
-interface User {
-  id: string;
-  email: string;
-  role: AppRole;
-}
+import { Button } from "@/components/ui/button";
+import { Settings, Wrench } from "lucide-react";
+import { User } from "./types";
+import { UserRoleBadge } from "./UserRoleBadge";
 
 interface UsersTableProps {
   users: User[];
-  userModules: {[key: string]: string[]};
+  userModules: { [key: string]: string[] };
   onManageModules: (user: User) => void;
-  getRoleLabel: (role: AppRole) => JSX.Element;
+  onManageRole: (user: User) => void;
 }
 
-const UsersTable = ({ users, userModules, onManageModules, getRoleLabel }: UsersTableProps) => {
-  const getUserModuleCount = (userId: string) => {
-    return userModules[userId]?.length || 0;
-  };
-
+const UsersTable = ({ users, userModules, onManageModules, onManageRole }: UsersTableProps) => {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Email</TableHead>
           <TableHead>Rôle</TableHead>
-          <TableHead>Modules assignés</TableHead>
+          <TableHead>Modules</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {users.map((user) => (
           <TableRow key={user.id}>
-            <TableCell>{user.email}</TableCell>
-            <TableCell>{getRoleLabel(user.role)}</TableCell>
-            <TableCell>{getUserModuleCount(user.id)}</TableCell>
-            <TableCell className="text-right">
+            <TableCell className="font-medium">{user.email}</TableCell>
+            <TableCell>
+              <UserRoleBadge role={user.role} />
+            </TableCell>
+            <TableCell>
+              {userModules[user.id] ? (
+                <span className="text-sm text-muted-foreground">
+                  {userModules[user.id].length} modules
+                </span>
+              ) : (
+                <span className="text-sm text-muted-foreground">Aucun module</span>
+              )}
+            </TableCell>
+            <TableCell className="text-right space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onManageRole(user)}
+                className="h-8 px-2 lg:px-3"
+              >
+                <Settings className="h-4 w-4 mr-0 lg:mr-2" />
+                <span className="hidden lg:inline">Rôle</span>
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => onManageModules(user)}
+                className="h-8 px-2 lg:px-3"
               >
-                <UserCog className="h-4 w-4 mr-2" />
-                Gérer les modules
+                <Wrench className="h-4 w-4 mr-0 lg:mr-2" />
+                <span className="hidden lg:inline">Modules</span>
               </Button>
             </TableCell>
           </TableRow>

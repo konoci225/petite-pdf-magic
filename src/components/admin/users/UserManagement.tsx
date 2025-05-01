@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import UsersTable from "./UsersTable";
 import UserModulesDialog from "./UserModulesDialog";
-import { useUserService, User, Module } from "./UserService";
-import { Database } from "@/integrations/supabase/types";
-
-type AppRole = Database["public"]["Enums"]["app_role"];
+import UserRoleDialog from "./UserRoleDialog";
+import { useUserService, User, AppRole } from "./UserService";
+import { useModuleService } from "./ModuleService";
+import { Module } from "./types";
 
 export const UserManagement = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -16,11 +16,15 @@ export const UserManagement = () => {
   const [userModules, setUserModules] = useState<{[key: string]: string[]}>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isModulesDialogOpen, setIsModulesDialogOpen] = useState(false);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const [selectedRole, setSelectedRole] = useState<AppRole | null>(null);
+  
   const { toast } = useToast();
   const userService = useUserService();
+  const moduleService = useModuleService();
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -49,7 +53,7 @@ export const UserManagement = () => {
 
   const fetchModules = async () => {
     try {
-      const fetchedModules = await userService.fetchModules();
+      const fetchedModules = await moduleService.fetchModules();
       setModules(fetchedModules);
     } catch (error: any) {
       console.error("Error fetching modules:", error);
@@ -58,7 +62,7 @@ export const UserManagement = () => {
 
   const fetchUserModules = async () => {
     try {
-      const fetchedUserModules = await userService.fetchUserModules();
+      const fetchedUserModules = await moduleService.fetchUserModules();
       setUserModules(fetchedUserModules);
     } catch (error: any) {
       console.error("Error fetching user modules:", error);
@@ -72,7 +76,13 @@ export const UserManagement = () => {
   const handleManageModules = (user: User) => {
     setSelectedUser(user);
     setSelectedModules(userModules[user.id] || []);
-    setIsDialogOpen(true);
+    setIsModulesDialogOpen(true);
+  };
+  
+  const handleManageRole = (user: User) => {
+    setSelectedUser(user);
+    setSelectedRole(user.role);
+    setIsRoleDialogOpen(true);
   };
 
   const handleModuleToggle = (moduleId: string) => {
@@ -88,7 +98,7 @@ export const UserManagement = () => {
   const handleSaveUserModules = async () => {
     if (!selectedUser) return;
 
-    const success = await userService.saveUserModules(selectedUser.id, selectedModules);
+    const success = await moduleService.saveUserModules(selectedUser.id, selectedModules);
     
     if (success) {
       // Update the local state
@@ -97,32 +107,26 @@ export const UserManagement = () => {
         [selectedUser.id]: selectedModules,
       }));
       
-      setIsDialogOpen(false);
+      setIsModulesDialogOpen(false);
     }
   };
-
-  const getRoleLabel = (role: AppRole) => {
-    switch (role) {
-      case "super_admin":
-        return (
-          <span className="inline-flex items-center rounded-md bg-purple-50 px-2 py-1 text-xs font-medium text-purple-700 ring-1 ring-inset ring-purple-700/10">
-            Super Admin
-          </span>
-        );
-      case "subscriber":
-        return (
-          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-            Abonné
-          </span>
-        );
-      case "visitor":
-        return (
-          <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
-            Visiteur
-          </span>
-        );
-      default:
-        return <span>{role}</span>;
+  
+  const handleSaveUserRole = async () => {
+    if (!selectedUser || !selectedRole) return;
+    
+    const success = await userService.changeUserRole(selectedUser.id, selectedRole);
+    
+    if (success) {
+      // Update the user in the local state
+      setUsers((prev) => 
+        prev.map(user => 
+          user.id === selectedUser.id 
+            ? { ...user, role: selectedRole } 
+            : user
+        )
+      );
+      
+      setIsRoleDialogOpen(false);
     }
   };
 
@@ -146,7 +150,7 @@ export const UserManagement = () => {
           users={users} 
           userModules={userModules}
           onManageModules={handleManageModules}
-          getRoleLabel={getRoleLabel}
+          onManageRole={handleManageRole}
         />
       ) : (
         <div className="text-center py-8 text-gray-500">
@@ -156,13 +160,23 @@ export const UserManagement = () => {
 
       {/* Assign Modules Dialog */}
       <UserModulesDialog 
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
+        isOpen={isModulesDialogOpen}
+        onClose={() => setIsModulesDialogOpen(false)}
         selectedUser={selectedUser}
         modules={modules}
         selectedModules={selectedModules}
         onModuleToggle={handleModuleToggle}
         onSave={handleSaveUserModules}
+      />
+      
+      {/* Change Role Dialog */}
+      <UserRoleDialog
+        isOpen={isRoleDialogOpen}
+        onClose={() => setIsRoleDialogOpen(false)}
+        selectedUser={selectedUser}
+        selectedRole={selectedRole}
+        onRoleChange={setSelectedRole}
+        onSave={handleSaveUserRole}
       />
     </div>
   );

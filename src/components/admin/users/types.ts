@@ -16,3 +16,8 @@ export interface Module {
   is_active: boolean;
   is_premium: boolean;
 }
+
+export interface RoleChangeRequest {
+  userId: string;
+  newRole: AppRole;
+}
