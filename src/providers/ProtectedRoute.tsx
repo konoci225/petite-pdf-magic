@@ -29,6 +29,10 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     hasPermission: role && allowedRoles ? allowedRoles.includes(role) : true
   });
 
+  // Special case for super_admin - they should be able to access everything
+  const isSuperAdmin = role === "super_admin";
+  const hasPermission = isSuperAdmin || (role && allowedRoles ? allowedRoles.includes(role) : true);
+
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -42,8 +46,8 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // If roles are specified and user's role is not in allowed roles, redirect to home
-  if (allowedRoles && allowedRoles.length > 0 && role && !allowedRoles.includes(role)) {
+  // If roles are specified and user doesn't have permission
+  if (allowedRoles && allowedRoles.length > 0 && !hasPermission) {
     console.error(`Access denied: User has role ${role}, but needs one of ${allowedRoles.join(', ')}`);
     
     toast({

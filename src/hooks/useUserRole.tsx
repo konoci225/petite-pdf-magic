@@ -32,14 +32,35 @@ export const useUserRole = () => {
           .maybeSingle();
 
         if (userError) {
-          console.error("Error fetching user role:", userError);
-          throw userError;
+          if (userError.code === "PGRST301") {
+            console.warn("Row level security prevented role lookup. This is expected for non-admins.");
+          } else {
+            console.error("Error fetching user role:", userError);
+            throw userError;
+          }
         }
 
         // If role found, set it in the state
         if (userData && userData.role) {
           console.log("Found role for user:", userData.role);
           setRole(userData.role);
+          setIsLoading(false);
+          return;
+        }
+
+        // Try using RPC function if direct query fails due to RLS
+        console.log("Trying RPC function to get role...");
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_user_role', { user_id: user.id });
+
+        if (rpcError) {
+          console.error("Error using RPC to get role:", rpcError);
+          throw rpcError;
+        }
+
+        if (rpcData) {
+          console.log("Found role via RPC:", rpcData);
+          setRole(rpcData as UserRole);
           setIsLoading(false);
           return;
         }
@@ -99,7 +120,7 @@ export const useUserRole = () => {
       setRole(null);
       setIsLoading(false);
     }
-  }, [user, toast, role]);
+  }, [user, toast]);
 
   return { role, isLoading };
 };
