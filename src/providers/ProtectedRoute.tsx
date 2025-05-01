@@ -15,13 +15,14 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { role, isLoading } = useUserRole();
   const location = useLocation();
   const { toast } = useToast();
 
   console.log("ProtectedRoute check:", { 
     user: user?.id, 
+    session: session?.access_token ? "Valid" : "None",
     role, 
     isLoading, 
     allowedRoles,
@@ -37,7 +38,7 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   // If no user is logged in, redirect to auth page
-  if (!user) {
+  if (!user || !session) {
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
@@ -47,7 +48,7 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     
     toast({
       title: "Accès non autorisé",
-      description: "Vous n'avez pas les permissions requises.",
+      description: `Vous avez le rôle ${role}, mais vous avez besoin d'un de ces rôles: ${allowedRoles.join(', ')}`,
       variant: "destructive"
     });
     return <Navigate to="/" replace />;

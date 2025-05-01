@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 type UserRole = Database["public"]["Enums"]["app_role"];
 
 export const useUserRole = () => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -74,19 +74,32 @@ export const useUserRole = () => {
         setRole(defaultRole);
       } catch (error: any) {
         console.error("Error retrieving role:", error);
+        
+        // More informative toast message
         toast({
-          title: "Erreur",
-          description: "Impossible de récupérer votre rôle",
+          title: "Erreur de récupération de rôle",
+          description: `Impossible de récupérer votre rôle: ${error.message}`,
           variant: "destructive",
         });
-        setRole("visitor"); // Default to visitor on error
+        
+        // Default to visitor on error, but only if there's no existing role
+        if (!role) {
+          setRole("visitor");
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchUserRole();
-  }, [user, toast]);
+    // Only fetch role if there's an authenticated user
+    if (user) {
+      setIsLoading(true);
+      fetchUserRole();
+    } else {
+      setRole(null);
+      setIsLoading(false);
+    }
+  }, [user, toast, role]);
 
   return { role, isLoading };
 };
