@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/providers/AuthProvider";
-import { Eye, EyeOff, Lock, Mail, User, Check, ArrowRight, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, Check, ArrowRight, Loader2 } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
@@ -17,12 +17,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 
+// Validation pour la connexion
 const loginSchema = z.object({
   email: z.string().email("Adresse email invalide"),
   password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères"),
   rememberMe: z.boolean().optional(),
 });
 
+// Validation pour l'inscription
 const registerSchema = z.object({
   lastName: z.string().min(1, "Le nom est requis"),
   firstName: z.string().min(1, "Le prénom est requis"),
@@ -64,7 +66,7 @@ const AuthPage = () => {
   });
 
   useEffect(() => {
-    if (user) navigate("/");
+    if (user) navigate("/"); // Rediriger si l'utilisateur est déjà connecté
   }, [user, navigate]);
 
   const calculatePasswordStrength = (password: string) => {
@@ -372,10 +374,7 @@ const AuthPage = () => {
                     render={({ field }) => (
                       <FormItem className="flex items-start space-x-2 space-y-0">
                         <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Checkbox checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                         <div className="space-y-1 leading-none">
                           <FormLabel className="text-sm">
@@ -402,4 +401,3 @@ const AuthPage = () => {
 };
 
 export default AuthPage;
-
