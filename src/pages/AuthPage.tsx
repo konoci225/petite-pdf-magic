@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +15,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+
+console.log('Loading AuthPage component');
 
 const loginSchema = z.object({
   email: z.string().email("Adresse email invalide"),
@@ -44,7 +45,11 @@ const registerSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
+console.log('Rendering AuthPage component');
+
 const AuthPage = () => {
+  console.log('Rendering AuthPage component');
+  
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -220,8 +225,11 @@ const AuthPage = () => {
     }
   };
 
+  console.log('Before rendering AuthPage JSX');
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      {console.log('Rendering AuthPage JSX')}
       <Card className="w-full max-w-md">
         <CardHeader>
           <div className="flex justify-center mb-4">
@@ -235,7 +243,9 @@ const AuthPage = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
+            {console.log('Rendering Tabs component')}
             <TabsList className="grid w-full grid-cols-2 mb-6">
+              {console.log('Rendering TabsList component')}
               <TabsTrigger value="signin">Connexion</TabsTrigger>
               <TabsTrigger value="signup">Inscription</TabsTrigger>
             </TabsList>
