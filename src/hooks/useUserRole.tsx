@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 type UserRole = Database["public"]["Enums"]["app_role"];
 
 export const useUserRole = () => {
-  const { user, session } = useAuth();
+  const { user, session, refreshSession } = useAuth();
   const [role, setRole] = useState<UserRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
@@ -120,7 +120,7 @@ export const useUserRole = () => {
       setRole(null);
       setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, refreshSession]);
 
   // Fonction pour forcer la mise à jour du rôle
   const refreshRole = async () => {
@@ -136,6 +136,8 @@ export const useUserRole = () => {
         if (data) {
           console.log("Rôle actualisé:", data);
           setRole(data as UserRole);
+          // Rafraîchir également la session pour s'assurer que tout est cohérent
+          await refreshSession();
         }
       } catch (error) {
         console.error("Erreur lors de l'actualisation du rôle:", error);

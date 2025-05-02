@@ -1,94 +1,98 @@
 
-import { createContext, useContext, useEffect, useState } from "react";
-import { Session, User } from "@supabase/supabase-js";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { User, Session } from "@supabase/supabase-js";
 
-interface AuthContextType {
+interface AuthContextProps {
   user: User | null;
   session: Session | null;
+  loading: boolean;
+  error: Error | null;
   refreshSession: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ 
-  user: null, 
+export const AuthContext = createContext<AuthContextProps>({
+  user: null,
   session: null,
-  refreshSession: async () => {}
+  loading: true,
+  error: null,
+  refreshSession: async () => {},
 });
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const useAuth = () => useContext(AuthContext);
+
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const { toast } = useToast();
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  // Fonction pour rafraîchir manuellement la session
+  // Fonction pour rafraîchir la session actuelle
   const refreshSession = async () => {
     try {
-      const { data, error } = await supabase.auth.refreshSession();
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (data && data.session) {
-        setSession(data.session);
-        setUser(data.session.user);
-        console.log("Session actualisée avec succès");
-      }
-    } catch (error: any) {
-      console.error("Erreur lors de l'actualisation de la session:", error);
-      toast({
-        title: "Erreur de session",
-        description: "Impossible d'actualiser votre session",
-        variant: "destructive",
-      });
+      const { data, error: refreshError } = await supabase.auth.getSession();
+      if (refreshError) throw refreshError;
+      setSession(data.session);
+      setUser(data.session?.user || null);
+      return data.session;
+    } catch (err: any) {
+      console.error("Erreur lors de l'actualisation de la session:", err);
+      setError(err);
+      return null;
     }
   };
 
   useEffect(() => {
-    console.log("Configuration du fournisseur d'authentification...");
+    const setupAuth = async () => {
+      setLoading(true);
+      try {
+        // Récupérer la session initiale
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
 
-    // Configurer d'abord l'écouteur d'état d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        console.log("État d'authentification changé:", event, currentSession?.user?.id);
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        
-        if (event === 'SIGNED_OUT') {
-          console.log("Utilisateur déconnecté");
-        } else if (event === 'SIGNED_IN') {
-          console.log("Utilisateur connecté:", currentSession?.user?.email);
-        } else if (event === 'TOKEN_REFRESHED') {
-          console.log("Token de session actualisé");
+        if (initialSession) {
+          console.log("Session trouvée:", initialSession.user?.email);
+          setSession(initialSession);
+          setUser(initialSession.user);
+        } else {
+          console.log("Aucune session active trouvée");
+          setSession(null);
+          setUser(null);
         }
+
+        // Mettre en place l'écouteur de changement d'état d'authentification
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+          console.log("Changement d'état d'authentification:", event);
+          setSession(newSession);
+          setUser(newSession?.user || null);
+        });
+
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (err: any) {
+        console.error("Erreur d'initialisation de l'authentification:", err);
+        setError(err);
+      } finally {
+        setLoading(false);
       }
-    );
-
-    // Ensuite vérifier la session existante
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      console.log("Vérification de session initiale:", currentSession?.user?.id);
-      setSession(currentSession);
-      setUser(currentSession?.user ?? null);
-    });
-
-    return () => {
-      console.log("Nettoyage de l'abonnement d'authentification");
-      subscription.unsubscribe();
     };
+
+    setupAuth();
   }, []);
 
-  return (
-    <AuthContext.Provider value={{ user, session, refreshSession }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+  // Fournir le contexte d'authentification aux composants enfants
+  const value = {
+    user,
+    session,
+    loading,
+    error,
+    refreshSession
+  };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth doit être utilisé à l'intérieur d'un AuthProvider");
-  }
-  return context;
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

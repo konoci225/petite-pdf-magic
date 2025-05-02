@@ -1,5 +1,6 @@
+
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -13,7 +14,8 @@ import {
   Calendar,
   HelpCircle,
   LogOut,
-  Folder
+  Folder,
+  ShieldAlert
 } from "lucide-react";
 import { 
   Sidebar as SidebarComponent,
@@ -31,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface MenuItem {
   title: string;
@@ -41,8 +44,9 @@ interface MenuItem {
 
 const Sidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const { role } = useUserRole();
+  const { role, refreshRole } = useUserRole();
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -52,6 +56,7 @@ const Sidebar = () => {
         title: "Déconnexion réussie",
         description: "Vous avez été déconnecté avec succès",
       });
+      navigate("/auth");
     } catch (error: any) {
       toast({
         title: "Erreur de déconnexion",
@@ -63,15 +68,27 @@ const Sidebar = () => {
 
   const menuItems: MenuItem[] = [
     {
+      title: "Accueil",
+      icon: LayoutDashboard,
+      path: "/",
+      roles: ["subscriber", "super_admin", "visitor"]
+    },
+    {
       title: "Tableau de bord",
       icon: LayoutDashboard,
       path: "/dashboard",
       roles: ["subscriber", "super_admin", "visitor"]
     },
     {
+      title: "Administration",
+      icon: ShieldAlert,
+      path: "/admin",
+      roles: ["super_admin"]
+    },
+    {
       title: "Gestion des utilisateurs",
       icon: Users,
-      path: "/admin",
+      path: "/admin?tab=users",
       roles: ["super_admin"]
     },
     {
@@ -90,7 +107,7 @@ const Sidebar = () => {
       title: "Paramètres",
       icon: Settings,
       path: "/settings",
-      roles: ["super_admin"]
+      roles: ["super_admin", "subscriber"]
     },
     {
       title: "Mes fichiers",
@@ -136,7 +153,14 @@ const Sidebar = () => {
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-pdf-primary to-pdf-secondary flex items-center justify-center">
             <span className="text-white font-bold text-lg">P</span>
           </div>
-          <span className="text-xl font-bold text-pdf-dark">PDF Magic</span>
+          <div className="flex flex-col">
+            <span className="text-xl font-bold text-pdf-dark">PDF Magic</span>
+            {role === "super_admin" && (
+              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 text-xs">
+                Super Admin
+              </Badge>
+            )}
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -170,6 +194,11 @@ const Sidebar = () => {
             </div>
             <div className="text-sm font-semibold truncate">
               {user?.email}
+              {role && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Rôle: {role}
+                </div>
+              )}
             </div>
             <Button 
               variant="outline" 

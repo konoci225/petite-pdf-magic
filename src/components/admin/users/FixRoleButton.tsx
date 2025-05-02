@@ -7,7 +7,7 @@ import { useUserService } from "./UserService";
 import { Shield, Loader2 } from "lucide-react";
 
 export const FixRoleButton = () => {
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   const { refreshRole } = useUserRole();
   const { makeSelfSuperAdmin } = useUserService();
   const [isLoading, setIsLoading] = useState(false);
@@ -19,6 +19,9 @@ export const FixRoleButton = () => {
     try {
       // Attribuer le rôle Super Admin
       await makeSelfSuperAdmin(user.id);
+      
+      // Actualiser la session
+      await refreshSession();
       
       // Actualiser le rôle dans le contexte
       await refreshRole();

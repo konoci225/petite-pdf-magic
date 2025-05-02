@@ -26,7 +26,8 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     role, 
     isLoading, 
     allowedRoles,
-    hasPermission: role && allowedRoles ? allowedRoles.includes(role) : true
+    hasPermission: role && allowedRoles ? allowedRoles.includes(role) : true,
+    path: location.pathname
   });
 
   // Afficher le loader pendant le chargement du rôle
@@ -40,22 +41,26 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
 
   // Si aucun utilisateur n'est connecté, rediriger vers la page d'authentification
   if (!user || !session) {
+    console.log("No user or session, redirecting to auth");
     return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  // Cas spécial pour super_admin - ils devraient pouvoir accéder à tout
+  if (role === "super_admin") {
+    console.log("User is super_admin, access granted");
+    return <>{children}</>;
   }
 
   // Vérifier si des rôles sont requis
   if (!allowedRoles || allowedRoles.length === 0) {
     // Si aucun rôle spécifique n'est requis, autoriser l'accès
-    return <>{children}</>;
-  }
-
-  // Cas spécial pour super_admin - ils devraient pouvoir accéder à tout
-  if (role === "super_admin") {
+    console.log("No specific role required, access granted");
     return <>{children}</>;
   }
   
   // Vérification standard des rôles
   if (role && allowedRoles.includes(role)) {
+    console.log(`User has required role: ${role}, access granted`);
     return <>{children}</>;
   }
   
@@ -64,7 +69,7 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
   
   toast({
     title: "Accès non autorisé",
-    description: `Vous avez le rôle ${role}, mais vous avez besoin d'un de ces rôles: ${allowedRoles.join(', ')}`,
+    description: `Vous avez le rôle ${role || 'non défini'}, mais vous avez besoin d'un de ces rôles: ${allowedRoles.join(', ')}`,
     variant: "destructive"
   });
   
