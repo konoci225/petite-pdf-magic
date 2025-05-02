@@ -24,7 +24,7 @@ export const useUserRole = () => {
       try {
         console.log("Fetching role for user:", user.id);
         
-        // Get the user role from user_roles table
+        // Get the user role from user_roles table using direct query first
         const { data: userData, error: userError } = await supabase
           .from("user_roles")
           .select("role")
@@ -32,17 +32,17 @@ export const useUserRole = () => {
           .maybeSingle();
 
         if (userError) {
-          if (userError.code === "PGRST301") {
-            console.warn("Row level security prevented role lookup. This is expected for non-admins.");
-          } else {
-            console.error("Error fetching user role:", userError);
-            throw userError;
+          console.error("Error fetching user role:", userError);
+          
+          // Don't throw error here, continue to try the RPC function
+          if (userError.code !== "PGRST301") {
+            console.warn("Error fetching role:", userError);
           }
         }
 
-        // If role found, set it in the state
+        // If role found via direct query, set it in the state
         if (userData && userData.role) {
-          console.log("Found role for user:", userData.role);
+          console.log("Found role for user via direct query:", userData.role);
           setRole(userData.role);
           setIsLoading(false);
           return;
@@ -55,20 +55,17 @@ export const useUserRole = () => {
 
         if (rpcError) {
           console.error("Error using RPC to get role:", rpcError);
-          throw rpcError;
-        }
-
-        if (rpcData) {
+          // Don't throw error here, continue to default logic
+        } else if (rpcData) {
           console.log("Found role via RPC:", rpcData);
           setRole(rpcData as UserRole);
           setIsLoading(false);
           return;
         }
 
-        // If no role found, set a default role and create one
-        console.log("No role found for user, creating default role...");
+        // If no role found or errors occurred, check if any roles exist to determine if first user
+        console.log("No role found for user, determining if first user...");
         
-        // Determine if this is the first user - if so, make them super_admin
         const { count, error: countError } = await supabase
           .from("user_roles")
           .select("*", { count: 'exact', head: true });
@@ -96,7 +93,6 @@ export const useUserRole = () => {
       } catch (error: any) {
         console.error("Error retrieving role:", error);
         
-        // More informative toast message
         toast({
           title: "Erreur de récupération de rôle",
           description: `Impossible de récupérer votre rôle: ${error.message}`,

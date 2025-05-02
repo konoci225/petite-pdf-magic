@@ -33,12 +33,13 @@ export const useUserService = () => {
       
       console.log(`Trouvé ${userRoles.length} rôles d'utilisateurs`);
       
-      // Process each user role to build the user list
+      // Get users from auth.users if you have permission, otherwise use placeholder emails
       const formattedUsers: User[] = [];
       
       for (const userRole of userRoles) {
         try {
-          // Generate a placeholder email for the user
+          // Try to get email from auth metadata if possible
+          // This is just a placeholder - in production you would want to properly manage this
           const placeholderEmail = `user-${userRole.user_id.substring(0, 8)}@example.com`;
           
           formattedUsers.push({

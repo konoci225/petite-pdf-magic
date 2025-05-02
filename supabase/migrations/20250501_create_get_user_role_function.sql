@@ -15,10 +15,23 @@ $$;
 ALTER TABLE IF EXISTS public.user_roles ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policy for user_roles to allow select by the user themselves
-CREATE POLICY IF NOT EXISTS "Users can view their own role" 
+DROP POLICY IF EXISTS "Users can view their own role" ON public.user_roles;
+CREATE POLICY "Users can view their own role" 
 ON public.user_roles 
 FOR SELECT 
 USING (auth.uid() = user_id);
+
+-- Create policy for admins to see all roles
+DROP POLICY IF EXISTS "Super admins can view all roles" ON public.user_roles;
+CREATE POLICY "Super admins can view all roles"
+ON public.user_roles
+FOR ALL
+USING (
+  EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = auth.uid() AND role = 'super_admin'
+  )
+);
 
 -- Create trigger for handling new users
 CREATE OR REPLACE FUNCTION public.handle_new_user()
