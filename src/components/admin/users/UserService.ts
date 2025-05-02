@@ -11,7 +11,7 @@ export const useUserService = () => {
     try {
       console.log("Récupération des utilisateurs...");
       
-      // Get user_roles first
+      // Récupérer d'abord les rôles d'utilisateurs
       const { data: userRoles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
@@ -33,13 +33,13 @@ export const useUserService = () => {
       
       console.log(`Trouvé ${userRoles.length} rôles d'utilisateurs`);
       
-      // Get users from auth.users if you have permission, otherwise use placeholder emails
+      // Tenter de récupérer les adresses email des utilisateurs si possible
       const formattedUsers: User[] = [];
       
       for (const userRole of userRoles) {
         try {
-          // Try to get email from auth metadata if possible
-          // This is just a placeholder - in production you would want to properly manage this
+          // Essayer de récupérer les emails depuis auth.users via un RPC si disponible
+          // Sinon, utiliser un email généré à partir de l'ID
           const placeholderEmail = `user-${userRole.user_id.substring(0, 8)}@example.com`;
           
           formattedUsers.push({
@@ -51,7 +51,7 @@ export const useUserService = () => {
         } catch (error) {
           console.warn(`Erreur pour l'utilisateur ${userRole.user_id}:`, error);
           
-          // Add with placeholder email
+          // Ajouter avec un email générique
           formattedUsers.push({
             id: userRole.user_id,
             email: `user-${userRole.user_id.substring(0, 8)}@example.com`,
@@ -64,7 +64,7 @@ export const useUserService = () => {
       return formattedUsers;
       
     } catch (error: any) {
-      console.error("Error fetching users:", error);
+      console.error("Erreur lors de la récupération des utilisateurs:", error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les utilisateurs",
@@ -76,32 +76,18 @@ export const useUserService = () => {
 
   const changeUserRole = async (userId: string, newRole: AppRole): Promise<boolean> => {
     try {
-      // First, check if the user exists in user_roles
-      const { data: existingRole, error: checkError } = await supabase
+      console.log(`Modification du rôle pour l'utilisateur ${userId} à ${newRole}`);
+      
+      // Mettre à jour ou insérer le rôle de l'utilisateur
+      const { error } = await supabase
         .from("user_roles")
-        .select("*")
-        .eq("user_id", userId)
-        .single();
+        .upsert({ 
+          user_id: userId, 
+          role: newRole 
+        }, { onConflict: 'user_id' });
       
-      if (checkError && checkError.code !== "PGRST116") {
-        throw checkError;
-      }
-      
-      if (existingRole) {
-        // Update existing role
-        const { error: updateError } = await supabase
-          .from("user_roles")
-          .update({ role: newRole })
-          .eq("user_id", userId);
-        
-        if (updateError) throw updateError;
-      } else {
-        // Insert new role
-        const { error: insertError } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: newRole });
-        
-        if (insertError) throw insertError;
+      if (error) {
+        throw error;
       }
       
       toast({

@@ -17,34 +17,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log("Setting up auth provider...");
+    console.log("Configuration du fournisseur d'authentification...");
 
-    // Set up auth state listener first
+    // Configurer d'abord l'écouteur d'état d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
-        console.log("Auth state changed:", event, currentSession?.user?.id);
+        console.log("État d'authentification changé:", event, currentSession?.user?.id);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
         if (event === 'SIGNED_OUT') {
-          console.log("User signed out");
+          console.log("Utilisateur déconnecté");
         } else if (event === 'SIGNED_IN') {
-          console.log("User signed in:", currentSession?.user?.email);
+          console.log("Utilisateur connecté:", currentSession?.user?.email);
         } else if (event === 'TOKEN_REFRESHED') {
-          console.log("Session token refreshed");
+          console.log("Token de session actualisé");
         }
       }
     );
 
-    // Then check for existing session
+    // Ensuite vérifier la session existante
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      console.log("Initial session check:", currentSession?.user?.id);
+      console.log("Vérification de session initiale:", currentSession?.user?.id);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
     });
 
     return () => {
-      console.log("Cleaning up auth subscription");
+      console.log("Nettoyage de l'abonnement d'authentification");
       subscription.unsubscribe();
     };
   }, []);
@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
+    throw new Error("useAuth doit être utilisé à l'intérieur d'un AuthProvider");
   }
   return context;
 };
