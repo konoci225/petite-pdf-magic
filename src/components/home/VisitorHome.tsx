@@ -21,7 +21,7 @@ const VisitorHome = () => {
       </div>
 
       {isFirstUser && (
-        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+        <Alert variant="default" className="bg-amber-50 border-amber-200">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
           <AlertTitle className="text-amber-800">Problème d'accès administrateur ?</AlertTitle>
           <AlertDescription className="text-amber-700">
