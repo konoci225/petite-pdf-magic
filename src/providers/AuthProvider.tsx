@@ -32,17 +32,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [error, setError] = useState<Error | null>(null);
 
   // Fonction pour rafraîchir la session actuelle
-  const refreshSession = async () => {
+  const refreshSession = async (): Promise<void> => {
     try {
       const { data, error: refreshError } = await supabase.auth.getSession();
       if (refreshError) throw refreshError;
       setSession(data.session);
       setUser(data.session?.user || null);
-      return data.session;
     } catch (err: any) {
       console.error("Erreur lors de l'actualisation de la session:", err);
       setError(err);
-      return null;
     }
   };
 
