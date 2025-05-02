@@ -11,7 +11,7 @@ export const useUserService = () => {
     try {
       console.log("Récupération des utilisateurs...");
       
-      // Récupérer d'abord les rôles d'utilisateurs
+      // Récupérer les rôles d'utilisateurs
       const { data: userRoles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id, role");
@@ -33,13 +33,13 @@ export const useUserService = () => {
       
       console.log(`Trouvé ${userRoles.length} rôles d'utilisateurs`);
       
-      // Tenter de récupérer les adresses email des utilisateurs si possible
+      // Formater les données des utilisateurs
       const formattedUsers: User[] = [];
       
       for (const userRole of userRoles) {
         try {
-          // Essayer de récupérer les emails depuis auth.users via un RPC si disponible
-          // Sinon, utiliser un email généré à partir de l'ID
+          // Essayer de récupérer les informations utilisateur via RPC si disponible
+          // Ou utiliser un email généré à partir de l'ID comme solution de secours
           const placeholderEmail = `user-${userRole.user_id.substring(0, 8)}@example.com`;
           
           formattedUsers.push({
@@ -47,11 +47,10 @@ export const useUserService = () => {
             email: placeholderEmail,
             role: userRole.role as AppRole
           });
-          
         } catch (error) {
           console.warn(`Erreur pour l'utilisateur ${userRole.user_id}:`, error);
           
-          // Ajouter avec un email générique
+          // Ajouter avec un email générique en cas d'erreur
           formattedUsers.push({
             id: userRole.user_id,
             email: `user-${userRole.user_id.substring(0, 8)}@example.com`,
@@ -112,9 +111,43 @@ export const useUserService = () => {
     return [];
   };
 
+  // Fonction pour définir le rôle Super Admin pour l'utilisateur actuel
+  const makeSelfSuperAdmin = async (userId: string): Promise<boolean> => {
+    try {
+      console.log("Attribution du rôle Super Admin à l'utilisateur actuel:", userId);
+      
+      const { error } = await supabase
+        .from("user_roles")
+        .upsert({
+          user_id: userId,
+          role: "super_admin" as AppRole
+        }, { onConflict: 'user_id' });
+        
+      if (error) {
+        throw error;
+      }
+      
+      toast({
+        title: "Succès",
+        description: "Vous avez maintenant le rôle Super Admin",
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error("Erreur lors de l'attribution du rôle Super Admin:", error);
+      toast({
+        title: "Erreur",
+        description: `Impossible d'attribuer le rôle Super Admin: ${error.message}`,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   return {
     fetchUsers,
     changeUserRole,
-    createDemoUsers
+    createDemoUsers,
+    makeSelfSuperAdmin
   };
 };

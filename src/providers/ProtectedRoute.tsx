@@ -43,21 +43,30 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Cas spécial pour super_admin - ils devraient pouvoir accéder à tout
-  const isSuperAdmin = role === "super_admin";
-  const hasPermission = isSuperAdmin || (role && allowedRoles ? allowedRoles.includes(role) : true);
-
-  // Si des rôles sont spécifiés et que l'utilisateur n'a pas la permission
-  if (allowedRoles && allowedRoles.length > 0 && !hasPermission) {
-    console.error(`Accès refusé: L'utilisateur a le rôle ${role}, mais a besoin d'un de ces rôles: ${allowedRoles.join(', ')}`);
-    
-    toast({
-      title: "Accès non autorisé",
-      description: `Vous avez le rôle ${role}, mais vous avez besoin d'un de ces rôles: ${allowedRoles.join(', ')}`,
-      variant: "destructive"
-    });
-    return <Navigate to="/" replace />;
+  // Vérifier si des rôles sont requis
+  if (!allowedRoles || allowedRoles.length === 0) {
+    // Si aucun rôle spécifique n'est requis, autoriser l'accès
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  // Cas spécial pour super_admin - ils devraient pouvoir accéder à tout
+  if (role === "super_admin") {
+    return <>{children}</>;
+  }
+  
+  // Vérification standard des rôles
+  if (role && allowedRoles.includes(role)) {
+    return <>{children}</>;
+  }
+  
+  // L'utilisateur n'a pas les permissions nécessaires
+  console.error(`Accès refusé: L'utilisateur a le rôle ${role}, mais a besoin d'un de ces rôles: ${allowedRoles.join(', ')}`);
+  
+  toast({
+    title: "Accès non autorisé",
+    description: `Vous avez le rôle ${role}, mais vous avez besoin d'un de ces rôles: ${allowedRoles.join(', ')}`,
+    variant: "destructive"
+  });
+  
+  return <Navigate to="/" replace />;
 };

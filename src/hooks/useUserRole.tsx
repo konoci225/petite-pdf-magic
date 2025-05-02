@@ -22,42 +22,45 @@ export const useUserRole = () => {
       }
 
       try {
-        console.log("Fetching role for user:", user.id);
+        console.log("Récupération du rôle pour l'utilisateur:", user.id);
         
-        // Approche 1: Essayer de récupérer directement de la table user_roles
+        // Méthode 1: Utiliser la fonction RPC (approche recommandée)
+        console.log("Tentative avec la fonction RPC...");
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_user_role', { user_id: user.id });
+
+        if (!rpcError && rpcData) {
+          console.log("Rôle trouvé via RPC:", rpcData);
+          setRole(rpcData as UserRole);
+          setIsLoading(false);
+          return;
+        }
+        
+        if (rpcError) {
+          console.warn("Erreur avec la fonction RPC:", rpcError);
+        }
+
+        // Méthode 2: Requête directe à la table user_roles
+        console.log("Tentative de récupération directe depuis user_roles...");
         const { data: userData, error: userError } = await supabase
           .from("user_roles")
           .select("role")
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (userError) {
-          console.error("Erreur lors de la récupération directe du rôle:", userError);
-        }
-
-        if (userData && userData.role) {
+        if (!userError && userData && userData.role) {
           console.log("Rôle trouvé par requête directe:", userData.role);
           setRole(userData.role);
           setIsLoading(false);
           return;
         }
         
-        // Approche 2: Utiliser la fonction RPC
-        console.log("Tentative avec la fonction RPC...");
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('get_user_role', { user_id: user.id });
-
-        if (rpcError) {
-          console.error("Erreur avec la fonction RPC:", rpcError);
-        } else if (rpcData) {
-          console.log("Rôle trouvé via RPC:", rpcData);
-          setRole(rpcData as UserRole);
-          setIsLoading(false);
-          return;
+        if (userError) {
+          console.warn("Erreur lors de la récupération directe:", userError);
         }
 
-        // Approche 3: Vérifier si c'est le premier utilisateur (cas spécial)
-        console.log("Vérification si premier utilisateur...");
+        // Méthode 3: Vérification si c'est le premier utilisateur
+        console.log("Vérification s'il s'agit du premier utilisateur...");
         
         const { count: userCount, error: countError } = await supabase
           .from("user_roles")
@@ -65,13 +68,12 @@ export const useUserRole = () => {
           
         if (countError) {
           console.error("Erreur lors du comptage des rôles:", countError);
-          throw new Error(`Erreur de comptage des utilisateurs: ${countError.message}`);
         }
         
         const isFirstUser = userCount === 0;
         console.log(`Utilisateurs existants: ${userCount}, Premier utilisateur: ${isFirstUser}`);
         
-        // Approche 4: Configurer un rôle par défaut et l'enregistrer
+        // Méthode 4: Attribution d'un rôle par défaut
         const defaultRole: UserRole = isFirstUser ? "super_admin" : "visitor";
         console.log(`Attribution du rôle par défaut: ${defaultRole}`);
         
@@ -81,7 +83,7 @@ export const useUserRole = () => {
             .upsert({ 
               user_id: user.id, 
               role: defaultRole 
-            }, { onConflict: 'user_id' });
+            });
 
           if (insertError) {
             console.error("Erreur lors de l'insertion du rôle:", insertError);
@@ -92,7 +94,7 @@ export const useUserRole = () => {
           setRole(defaultRole);
         } catch (insertErr: any) {
           console.error("Erreur lors de la création du rôle:", insertErr);
-          // En cas d'échec de l'insertion, on utilise quand même le rôle par défaut
+          // En cas d'échec de l'insertion, utiliser quand même le rôle par défaut
           setRole(defaultRole);
         }
       } catch (error: any) {
@@ -104,11 +106,8 @@ export const useUserRole = () => {
           variant: "destructive",
         });
         
-        // Par défaut, utiliser le rôle visiteur si rien d'autre ne fonctionne
-        if (!role) {
-          console.log("Définition du rôle par défaut: visitor");
-          setRole("visitor");
-        }
+        // Par défaut, définir le rôle comme visiteur si tout échoue
+        setRole("visitor");
       } finally {
         setIsLoading(false);
       }
@@ -123,5 +122,28 @@ export const useUserRole = () => {
     }
   }, [user, toast]);
 
-  return { role, isLoading };
+  // Fonction pour forcer la mise à jour du rôle
+  const refreshRole = async () => {
+    if (user) {
+      setIsLoading(true);
+      try {
+        // Forcer l'actualisation du rôle depuis la base de données
+        const { data, error } = await supabase
+          .rpc('get_user_role', { user_id: user.id });
+          
+        if (error) throw error;
+        
+        if (data) {
+          console.log("Rôle actualisé:", data);
+          setRole(data as UserRole);
+        }
+      } catch (error) {
+        console.error("Erreur lors de l'actualisation du rôle:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  return { role, isLoading, refreshRole };
 };

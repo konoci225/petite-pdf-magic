@@ -7,14 +7,43 @@ import { useToast } from "@/hooks/use-toast";
 interface AuthContextType {
   user: User | null;
   session: Session | null;
+  refreshSession: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, session: null });
+const AuthContext = createContext<AuthContextType>({ 
+  user: null, 
+  session: null,
+  refreshSession: async () => {}
+});
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const { toast } = useToast();
+
+  // Fonction pour rafraîchir manuellement la session
+  const refreshSession = async () => {
+    try {
+      const { data, error } = await supabase.auth.refreshSession();
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data && data.session) {
+        setSession(data.session);
+        setUser(data.session.user);
+        console.log("Session actualisée avec succès");
+      }
+    } catch (error: any) {
+      console.error("Erreur lors de l'actualisation de la session:", error);
+      toast({
+        title: "Erreur de session",
+        description: "Impossible d'actualiser votre session",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     console.log("Configuration du fournisseur d'authentification...");
@@ -50,7 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, session }}>
+    <AuthContext.Provider value={{ user, session, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );

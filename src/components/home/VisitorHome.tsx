@@ -1,123 +1,96 @@
 
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Wrench, Star, Upload } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import FileUploader from "@/components/tools/FileUploader";
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { FixRoleButton } from "@/components/admin/users/FixRoleButton";
+import { useAuth } from "@/providers/AuthProvider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle } from "lucide-react";
 
 const VisitorHome = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-
-  const handleUploadComplete = () => {
-    toast({
-      title: "Fichier téléchargé",
-      description: "Votre fichier a été téléchargé avec succès",
-    });
-    navigate("/my-files");
-  };
+  const { user } = useAuth();
+  const isFirstUser = user?.created_at && Date.now() - new Date(user.created_at).getTime() < 3600000; // 1 heure
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Bienvenue sur Petite PDF Magic</h1>
-        <Badge variant="secondary" className="bg-gray-50 text-gray-700 text-sm">
-          Visiteur
-        </Badge>
+      <div>
+        <h1 className="text-3xl font-bold">Bienvenue sur PDF Magic</h1>
+        <p className="text-gray-600">
+          Découvrez nos outils pour manipuler vos fichiers PDF en toute simplicité.
+        </p>
       </div>
-      
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-6 flex flex-col md:flex-row items-center gap-4">
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-blue-800 mb-2">Passez à l'offre Premium</h2>
-            <p className="text-blue-700">
-              Accédez à tous nos outils PDF avancés et profitez d'un stockage illimité.
+
+      {isFirstUser && (
+        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <AlertTitle className="text-amber-800">Problème d'accès administrateur ?</AlertTitle>
+          <AlertDescription className="text-amber-700">
+            Si vous êtes le premier utilisateur et que vous n'avez pas accès aux fonctionnalités d'administration, 
+            cliquez sur le bouton ci-dessous pour réparer vos droits d'accès.
+            <div className="mt-2">
+              <FixRoleButton />
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Fusion PDF</CardTitle>
+            <CardDescription>
+              Combinez plusieurs fichiers PDF en un seul document.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-gray-500">
+              Téléchargez plusieurs fichiers PDF et fusionnez-les instantanément.
             </p>
-          </div>
-          <Button onClick={() => navigate("/subscription")} className="shrink-0 bg-blue-600 hover:bg-blue-700">
-            S'abonner Maintenant
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card className="bg-gray-50">
-        <CardHeader>
-          <CardTitle className="text-center">Déposez vos fichiers PDF ici</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center">
-          <FileUploader 
-            onUploadComplete={handleUploadComplete}
-            maxFiles={3}
-            acceptedFileTypes={[".pdf"]}
-          />
-          <p className="text-sm text-muted-foreground mt-4 text-center">
-            Ou sélectionnez un outil ci-dessous pour démarrer
-          </p>
-        </CardContent>
-      </Card>
-
-      <h2 className="text-xl font-semibold mt-8">Outils Gratuits</h2>
-      <div className="grid gap-4 md:grid-cols-3">
+          </CardContent>
+          <CardFooter>
+            <Button variant="default" className="w-full" onClick={() => window.location.href = '/merge'}>
+              Fusionner des PDF
+            </Button>
+          </CardFooter>
+        </Card>
+        
         <Card>
           <CardHeader>
-            <CardTitle>Fusion de PDF (limité)</CardTitle>
+            <CardTitle>Division PDF</CardTitle>
+            <CardDescription>
+              Séparez un PDF en plusieurs documents distincts.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p>Combinez jusqu'à 3 fichiers PDF.</p>
-            <Button onClick={() => navigate("/merge")} className="w-full">
-              Essayer
-            </Button>
+          <CardContent>
+            <p className="text-sm text-gray-500">
+              Divisez votre PDF par pages ou par sections selon vos besoins.
+            </p>
           </CardContent>
+          <CardFooter>
+            <Button variant="default" className="w-full" onClick={() => window.location.href = '/split'}>
+              Diviser un PDF
+            </Button>
+          </CardFooter>
         </Card>
+        
         <Card>
           <CardHeader>
-            <CardTitle>Visualiseur PDF</CardTitle>
+            <CardTitle>Compression PDF</CardTitle>
+            <CardDescription>
+              Réduisez la taille de vos fichiers PDF.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p>Consultez vos documents PDF en ligne.</p>
-            <Button onClick={() => navigate("/view")} className="w-full">
-              Essayer
-            </Button>
+          <CardContent>
+            <p className="text-sm text-gray-500">
+              Optimisez vos PDFs pour les partager plus facilement.
+            </p>
           </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Compression PDF (basique)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p>Réduisez la taille de vos fichiers PDF.</p>
-            <Button onClick={() => navigate("/compress")} className="w-full">
-              Essayer
+          <CardFooter>
+            <Button variant="default" className="w-full" onClick={() => window.location.href = '/compress'}>
+              Compresser un PDF
             </Button>
-          </CardContent>
+          </CardFooter>
         </Card>
-      </div>
-
-      <h2 className="text-xl font-semibold mt-8">Outils Premium <span className="text-sm text-muted-foreground">(Nécessite un abonnement)</span></h2>
-      <div className="grid gap-4 md:grid-cols-3">
-        {["Signature PDF", "OCR PDF", "Édition PDF"].map((tool) => (
-          <Card key={tool} className="bg-gray-50 opacity-70">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CardTitle>{tool}</CardTitle>
-                <Star className="h-4 w-4 text-amber-500" />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p>Accédez à cet outil avec un abonnement premium.</p>
-              <Button 
-                onClick={() => navigate("/subscription")} 
-                variant="outline" 
-                className="w-full border-amber-500 text-amber-700"
-              >
-                Débloquer
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
       </div>
     </div>
   );
