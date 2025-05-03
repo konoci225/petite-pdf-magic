@@ -21,9 +21,10 @@ export const FixRoleButton = () => {
       // Approche directe pour définir le rôle super_admin
       console.log("Attribution directe du rôle super_admin pour:", user.id);
       
-      // Utiliser la méthode rpc de façon sécurisée sans dépendre des types TypeScript
+      // Use the Supabase rpc method with a type assertion to bypass TypeScript's function name checking
       const { error: upsertError } = await supabase.rpc(
-        'force_set_super_admin_role',
+        // Cast the function name to any to bypass TypeScript's type checking
+        'force_set_super_admin_role' as any,
         { target_user_id: user.id },
         { count: 'none' } // Explicitly set count option to avoid type issues
       );
