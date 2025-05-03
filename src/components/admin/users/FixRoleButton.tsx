@@ -25,8 +25,8 @@ export const FixRoleButton = () => {
       const { error: upsertError } = await supabase.rpc(
         // Cast the function name to any to bypass TypeScript's type checking
         'force_set_super_admin_role' as any,
-        { target_user_id: user.id },
-        // Remove the count option as it's causing a TypeScript error
+        { target_user_id: user.id }
+        // Removed the count option completely as it's causing TypeScript errors
       );
       
       if (upsertError) {
