@@ -12,14 +12,25 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/providers/AuthProvider";
 import { Navigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import FixRoleButton from "@/components/admin/users/FixRoleButton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const { role, isLoading: roleLoading } = useUserRole();
+  const { role, isLoading: roleLoading, refreshRole } = useUserRole();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [isKnownAdmin, setIsKnownAdmin] = useState(false);
 
-  console.log("AdminDashboard - Current user:", user?.id, "Role:", role, "Loading:", isLoading);
+  console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "Loading:", isLoading);
+
+  useEffect(() => {
+    // Vérifier si l'utilisateur est konointer@gmail.com
+    if (user?.email === "konointer@gmail.com") {
+      setIsKnownAdmin(true);
+    }
+  }, [user]);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -94,10 +105,50 @@ const AdminDashboard = () => {
     }
   };
 
+  // Actualiser le rôle manuellement
+  const handleRefreshRole = async () => {
+    await refreshRole();
+  };
+
   // Show loading screen when role is still loading
   if (roleLoading) {
     console.log("Role still loading...");
     return <AdminDashboardLoader />;
+  }
+
+  // Si c'est un admin connu mais sans le bon rôle, proposer de réparer
+  if (isKnownAdmin && role !== "super_admin") {
+    return (
+      <Layout>
+        <div className="container mx-auto py-8">
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Problème de droits d'accès</AlertTitle>
+            <AlertDescription>
+              Votre compte devrait avoir accès au tableau de bord Super Admin, mais vos droits ne sont pas correctement configurés.
+              <div className="mt-4 flex gap-4">
+                <FixRoleButton />
+                <button 
+                  onClick={handleRefreshRole}
+                  className="text-sm underline"
+                >
+                  Actualiser mon rôle
+                </button>
+              </div>
+            </AlertDescription>
+          </Alert>
+          
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h2 className="text-xl font-semibold mb-4">Détails de diagnostic</h2>
+            <div className="space-y-2 text-sm">
+              <p><strong>Email:</strong> {user?.email}</p>
+              <p><strong>Rôle actuel:</strong> {role || 'Non défini'}</p>
+              <p><strong>ID utilisateur:</strong> {user?.id}</p>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   // Redirect if not super_admin

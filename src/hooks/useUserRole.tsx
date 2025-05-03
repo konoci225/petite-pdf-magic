@@ -13,6 +13,55 @@ export const useUserRole = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  // Fonction pour forcer la mise à jour du rôle
+  const refreshRole = async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    console.log("Actualisation forcée du rôle pour l'utilisateur:", user.id);
+    
+    try {
+      // Forcer l'actualisation de la session d'abord
+      await refreshSession();
+      
+      // Essayer la fonction RPC
+      const { data, error } = await supabase
+        .rpc('get_user_role', { user_id: user.id });
+        
+      if (error) throw error;
+      
+      if (data) {
+        console.log("Rôle actualisé via RPC:", data);
+        setRole(data as UserRole);
+      } else {
+        // Requête directe comme fallback
+        const { data: userData, error: userError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .maybeSingle();
+          
+        if (userError) throw userError;
+        
+        if (userData && userData.role) {
+          console.log("Rôle actualisé via requête directe:", userData.role);
+          setRole(userData.role);
+        } else {
+          console.warn("Aucun rôle trouvé après actualisation");
+        }
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'actualisation du rôle:", error);
+      toast({
+        title: "Erreur d'actualisation du rôle",
+        description: "Impossible d'actualiser votre rôle. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchUserRole = async () => {
       if (!user) {
@@ -121,31 +170,6 @@ export const useUserRole = () => {
       setIsLoading(false);
     }
   }, [user, toast, refreshSession]);
-
-  // Fonction pour forcer la mise à jour du rôle
-  const refreshRole = async () => {
-    if (user) {
-      setIsLoading(true);
-      try {
-        // Forcer l'actualisation du rôle depuis la base de données
-        const { data, error } = await supabase
-          .rpc('get_user_role', { user_id: user.id });
-          
-        if (error) throw error;
-        
-        if (data) {
-          console.log("Rôle actualisé:", data);
-          setRole(data as UserRole);
-          // Rafraîchir également la session pour s'assurer que tout est cohérent
-          await refreshSession();
-        }
-      } catch (error) {
-        console.error("Erreur lors de l'actualisation du rôle:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
 
   return { role, isLoading, refreshRole };
 };

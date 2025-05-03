@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -15,7 +15,8 @@ import {
   HelpCircle,
   LogOut,
   Folder,
-  ShieldAlert
+  ShieldAlert,
+  RefreshCw
 } from "lucide-react";
 import { 
   Sidebar as SidebarComponent,
@@ -28,12 +29,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import FixRoleButton from "@/components/admin/users/FixRoleButton";
 
 interface MenuItem {
   title: string;
@@ -48,6 +49,16 @@ const Sidebar = () => {
   const { user } = useAuth();
   const { role, refreshRole } = useUserRole();
   const { toast } = useToast();
+  const [isKnownAdmin, setIsKnownAdmin] = useState(false);
+
+  // Vérifier si l'utilisateur est konointer@gmail.com
+  useEffect(() => {
+    if (user?.email === "konointer@gmail.com") {
+      setIsKnownAdmin(true);
+    } else {
+      setIsKnownAdmin(false);
+    }
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -64,6 +75,14 @@ const Sidebar = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleManualRefreshRole = async () => {
+    await refreshRole();
+    toast({
+      title: "Rôle actualisé",
+      description: "Votre rôle a été actualisé"
+    });
   };
 
   const menuItems: MenuItem[] = [
@@ -141,8 +160,14 @@ const Sidebar = () => {
     },
   ];
 
+  // Si c'est un admin connu, ajouter toujours les routes d'admin
   const filteredMenuItems = menuItems.filter(item => {
     if (!item.roles) return true;
+    
+    if (isKnownAdmin && item.roles.includes("super_admin")) {
+      return true;
+    }
+    
     return role && item.roles.includes(role);
   });
 
@@ -200,14 +225,31 @@ const Sidebar = () => {
                 </div>
               )}
             </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full mt-2"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4 mr-2" /> Déconnexion
-            </Button>
+            
+            <div className="flex flex-col gap-2 mt-2">
+              {/* Afficher le bouton de réparation des droits uniquement pour konointer@gmail.com */}
+              {isKnownAdmin && role !== "super_admin" && (
+                <FixRoleButton />
+              )}
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={handleManualRefreshRole}
+              >
+                <RefreshCw className="w-4 h-4 mr-2" /> Actualiser le rôle
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={handleLogout}
+              >
+                <LogOut className="w-4 h-4 mr-2" /> Déconnexion
+              </Button>
+            </div>
           </div>
         )}
       </SidebarFooter>

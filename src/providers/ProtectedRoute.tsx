@@ -1,5 +1,5 @@
 
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -16,17 +16,25 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, session } = useAuth();
-  const { role, isLoading } = useUserRole();
+  const { role, isLoading, refreshRole } = useUserRole();
   const location = useLocation();
   const { toast } = useToast();
 
+  useEffect(() => {
+    // Si l'utilisateur est connecté mais que nous n'avons pas de rôle, essayons de l'actualiser
+    if (user && !role && !isLoading) {
+      console.log("Tentative d'actualisation du rôle manquant...");
+      refreshRole();
+    }
+  }, [user, role, isLoading, refreshRole]);
+
   console.log("ProtectedRoute check:", { 
     user: user?.id, 
+    email: user?.email,
     session: session?.access_token ? "Valid" : "None",
     role, 
     isLoading, 
     allowedRoles,
-    hasPermission: role && allowedRoles ? allowedRoles.includes(role) : true,
     path: location.pathname
   });
 
@@ -45,9 +53,14 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
+  // Vérification des autorisations
+  const hasPermission = role && allowedRoles 
+    ? allowedRoles.includes(role) 
+    : true;
+  
   // Cas spécial pour super_admin - ils devraient pouvoir accéder à tout
   if (role === "super_admin") {
-    console.log("User is super_admin, access granted");
+    console.log(`User ${user.email} is super_admin, access granted`);
     return <>{children}</>;
   }
 
@@ -59,7 +72,7 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
   }
   
   // Vérification standard des rôles
-  if (role && allowedRoles.includes(role)) {
+  if (hasPermission) {
     console.log(`User has required role: ${role}, access granted`);
     return <>{children}</>;
   }
