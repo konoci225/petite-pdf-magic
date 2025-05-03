@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Layout from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +22,7 @@ const AdminDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isKnownAdmin, setIsKnownAdmin] = useState(false);
+  const [tablesAccessible, setTablesAccessible] = useState(false);
 
   console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "Loading:", isLoading);
 
@@ -32,13 +33,60 @@ const AdminDashboard = () => {
     }
   }, [user]);
 
+  // Fonction séparée pour vérifier l'existence des tables
+  const ensureTablesExist = useCallback(async () => {
+    try {
+      console.log("Checking required tables...");
+      
+      // Vérifier l'existence de la table modules
+      const { error: modulesError } = await supabase
+        .from('modules')
+        .select('id')
+        .limit(1);
+
+      if (modulesError) {
+        console.error("Erreur lors de la vérification de la table modules:", modulesError);
+        return false;
+      }
+
+      // Vérifier l'existence de la table user_roles
+      const { error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .limit(1);
+
+      if (userRolesError) {
+        console.error("Erreur lors de la vérification de la table user_roles:", userRolesError);
+        return false;
+      }
+
+      // Vérifier l'existence de la table user_modules
+      const { error: userModulesError } = await supabase
+        .from('user_modules')
+        .select('user_id, module_id')
+        .limit(1);
+
+      if (userModulesError) {
+        console.error("Erreur lors de la vérification de la table user_modules:", userModulesError);
+        return false;
+      }
+      
+      console.log("All required tables exist and are accessible.");
+      return true;
+    } catch (error) {
+      console.error("Error checking tables:", error);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     const checkAccess = async () => {
       setIsLoading(true);
       try {
         console.log("Checking database tables access...");
         // Vérifier si les tables requises existent
-        await ensureTablesExist();
+        const accessible = await ensureTablesExist();
+        setTablesAccessible(accessible);
         
         // In a real app, you might check more detailed permissions here
         setTimeout(() => {
@@ -59,51 +107,7 @@ const AdminDashboard = () => {
       console.log("Role loading completed, checking access...");
       checkAccess();
     }
-  }, [roleLoading, user, toast]);
-
-  // Fonction pour s'assurer que les tables nécessaires existent
-  const ensureTablesExist = async () => {
-    try {
-      console.log("Checking required tables...");
-      // Vérifier l'existence de la table modules
-      const { error: modulesError } = await supabase
-        .from('modules')
-        .select('id')
-        .limit(1);
-
-      if (modulesError) {
-        console.error("Erreur lors de la vérification de la table modules:", modulesError);
-        throw new Error("La table modules est inaccessible");
-      }
-
-      // Vérifier l'existence de la table user_roles
-      const { error: userRolesError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .limit(1);
-
-      if (userRolesError) {
-        console.error("Erreur lors de la vérification de la table user_roles:", userRolesError);
-        throw new Error("La table user_roles est inaccessible");
-      }
-
-      // Vérifier l'existence de la table user_modules
-      const { error: userModulesError } = await supabase
-        .from('user_modules')
-        .select('user_id, module_id')
-        .limit(1);
-
-      if (userModulesError) {
-        console.error("Erreur lors de la vérification de la table user_modules:", userModulesError);
-        throw new Error("La table user_modules est inaccessible");
-      }
-      
-      console.log("All required tables exist and are accessible.");
-    } catch (error) {
-      console.error("Error checking tables:", error);
-      throw error;
-    }
-  };
+  }, [roleLoading, user, toast, ensureTablesExist]);
 
   // Actualiser le rôle manuellement
   const handleRefreshRole = async () => {
@@ -166,6 +170,31 @@ const AdminDashboard = () => {
   if (isLoading) {
     console.log("Checking table access...");
     return <AdminDashboardLoader />;
+  }
+
+  // Show error if tables are not accessible
+  if (!tablesAccessible) {
+    return (
+      <Layout>
+        <div className="container mx-auto py-8">
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Problème d'accès aux données</AlertTitle>
+            <AlertDescription>
+              Impossible d'accéder aux tables nécessaires dans la base de données.
+              <div className="mt-4">
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="text-sm underline"
+                >
+                  Rafraîchir la page
+                </button>
+              </div>
+            </AlertDescription>
+          </Alert>
+        </div>
+      </Layout>
+    );
   }
 
   return (

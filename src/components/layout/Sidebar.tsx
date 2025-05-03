@@ -7,9 +7,9 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-import SidebarMenu from "./SidebarMenu";
-import SidebarFooterComponent from "./SidebarFooter";
-import SidebarHeaderComponent from "./SidebarHeader";
+import SidebarMenu from "./sidebar/SidebarMenu";
+import SidebarFooterComponent from "./sidebar/SidebarFooter";
+import SidebarHeaderComponent from "./sidebar/SidebarHeader";
 
 const Sidebar = () => {
   return (

@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
-import { useUserService } from "./UserService";
 import { Shield, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,20 +18,28 @@ export const FixRoleButton = () => {
     
     setIsLoading(true);
     try {
-      // Étape 1: Insérer directement dans la table user_roles avec la fonction RPC
-      console.log("Tentative d'attribution directe du rôle Super Admin...");
+      // Approche directe pour définir le rôle super_admin
+      console.log("Attribution directe du rôle super_admin pour:", user.id);
       
-      // Utiliser directement une requête SQL pour mettre à jour ou insérer le rôle
-      const { error: upsertError } = await supabase
-        .from("user_roles")
-        .upsert({ 
-          user_id: user.id,
-          role: "super_admin" 
-        }, { onConflict: "user_id" });
+      // Désactiver temporairement les triggers et les policies qui pourraient causer des problèmes
+      const { error: upsertError } = await supabase.rpc('force_set_super_admin_role', { 
+        target_user_id: user.id 
+      });
       
       if (upsertError) {
-        console.error("Erreur lors de l'upsert du rôle:", upsertError);
-        throw new Error(`Échec de l'attribution du rôle: ${upsertError.message}`);
+        // Si la fonction RPC échoue, essayons l'approche directe via upsert
+        console.log("La fonction RPC a échoué, tentative d'upsert direct");
+        
+        const { error: directUpsertError } = await supabase
+          .from("user_roles")
+          .upsert({ 
+            user_id: user.id,
+            role: "super_admin" 
+          }, { onConflict: "user_id" });
+        
+        if (directUpsertError) {
+          throw new Error(`Échec de l'attribution du rôle: ${directUpsertError.message}`);
+        }
       }
       
       // Vérifier que le rôle a été attribué correctement
@@ -49,12 +56,8 @@ export const FixRoleButton = () => {
       
       console.log("Rôle attribué avec succès:", checkRole);
       
-      // Actualiser la session
-      console.log("Actualisation de la session...");
+      // Actualiser la session et le rôle
       await refreshSession();
-      
-      // Actualiser le rôle dans le contexte
-      console.log("Actualisation du rôle dans le contexte...");
       await refreshRole();
       
       toast({
