@@ -26,7 +26,7 @@ export const FixRoleButton = () => {
         // Cast the function name to any to bypass TypeScript's type checking
         'force_set_super_admin_role' as any,
         { target_user_id: user.id },
-        { count: 'none' } // Explicitly set count option to avoid type issues
+        // Remove the count option as it's causing a TypeScript error
       );
       
       if (upsertError) {
