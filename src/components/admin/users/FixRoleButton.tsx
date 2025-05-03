@@ -6,26 +6,48 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { useUserService } from "./UserService";
 import { Shield, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const FixRoleButton = () => {
   const { user, refreshSession } = useAuth();
   const { refreshRole } = useUserRole();
-  const { makeSelfSuperAdmin } = useUserService();
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleFixRole = async () => {
     if (!user) return;
     
     setIsLoading(true);
     try {
-      // Attribuer le rôle Super Admin
-      console.log("Tentative d'attribution du rôle Super Admin...");
-      const success = await makeSelfSuperAdmin(user.id);
+      // Étape 1: Insérer directement dans la table user_roles avec la fonction RPC
+      console.log("Tentative d'attribution directe du rôle Super Admin...");
       
-      if (!success) {
-        throw new Error("Échec de l'attribution du rôle Super Admin");
+      // Utiliser directement une requête SQL pour mettre à jour ou insérer le rôle
+      const { error: upsertError } = await supabase
+        .from("user_roles")
+        .upsert({ 
+          user_id: user.id,
+          role: "super_admin" 
+        }, { onConflict: "user_id" });
+      
+      if (upsertError) {
+        console.error("Erreur lors de l'upsert du rôle:", upsertError);
+        throw new Error(`Échec de l'attribution du rôle: ${upsertError.message}`);
       }
+      
+      // Vérifier que le rôle a été attribué correctement
+      const { data: checkRole, error: checkError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+        
+      if (checkError || !checkRole || checkRole.role !== "super_admin") {
+        console.error("Vérification du rôle échouée:", checkError || "Rôle incorrect");
+        throw new Error("La vérification du rôle a échoué");
+      }
+      
+      console.log("Rôle attribué avec succès:", checkRole);
       
       // Actualiser la session
       console.log("Actualisation de la session...");
@@ -44,11 +66,11 @@ export const FixRoleButton = () => {
       setTimeout(() => {
         window.location.reload();
       }, 1500);
-    } catch (error) {
-      console.error("Erreur lors de la réparation du rôle:", error);
+    } catch (error: any) {
+      console.error("Erreur détaillée lors de la réparation du rôle:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de réparer les droits d'accès. Veuillez réessayer.",
+        description: "Impossible de réparer les droits d'accès: " + (error.message || "Erreur inconnue"),
         variant: "destructive",
       });
     } finally {

@@ -24,30 +24,51 @@ export const useUserRole = () => {
       // Forcer l'actualisation de la session d'abord
       await refreshSession();
       
-      // Essayer la fonction RPC
-      const { data, error } = await supabase
+      // Essayer la méthode directe qui devrait être la plus fiable
+      const { data: userData, error: userError } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+        
+      if (userError) {
+        console.error("Erreur lors de la requête directe:", userError);
+        throw userError;
+      }
+      
+      if (userData && userData.role) {
+        console.log("Rôle actualisé via requête directe:", userData.role);
+        setRole(userData.role);
+        return;
+      }
+      
+      // Si la méthode directe ne trouve rien, essayer avec la fonction RPC
+      const { data: rpcData, error: rpcError } = await supabase
         .rpc('get_user_role', { user_id: user.id });
         
-      if (error) throw error;
+      if (!rpcError && rpcData) {
+        console.log("Rôle actualisé via RPC:", rpcData);
+        setRole(rpcData as UserRole);
+        return;
+      }
       
-      if (data) {
-        console.log("Rôle actualisé via RPC:", data);
-        setRole(data as UserRole);
-      } else {
-        // Requête directe comme fallback
-        const { data: userData, error: userError } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .maybeSingle();
-          
-        if (userError) throw userError;
+      console.warn("Aucun rôle trouvé après actualisation");
+      // Si c'est konointer@gmail.com, tenter d'attribuer le rôle super_admin
+      if (user.email === "konointer@gmail.com") {
+        console.log("Attribution du rôle super_admin à konointer@gmail.com");
         
-        if (userData && userData.role) {
-          console.log("Rôle actualisé via requête directe:", userData.role);
-          setRole(userData.role);
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .upsert({ 
+            user_id: user.id, 
+            role: "super_admin" as UserRole 
+          });
+
+        if (insertError) {
+          console.error("Erreur lors de l'attribution du rôle super_admin:", insertError);
         } else {
-          console.warn("Aucun rôle trouvé après actualisation");
+          console.log("Rôle super_admin attribué avec succès");
+          setRole("super_admin" as UserRole);
         }
       }
     } catch (error) {
@@ -71,25 +92,52 @@ export const useUserRole = () => {
       }
 
       try {
-        console.log("Récupération du rôle pour l'utilisateur:", user.id);
+        console.log("Récupération du rôle pour l'utilisateur:", user.id, user.email);
         
-        // Méthode 1: Utiliser la fonction RPC (approche recommandée)
-        console.log("Tentative avec la fonction RPC...");
-        const { data: rpcData, error: rpcError } = await supabase
-          .rpc('get_user_role', { user_id: user.id });
+        // Cas spécial pour konointer@gmail.com
+        if (user.email === "konointer@gmail.com") {
+          console.log("Utilisateur spécial détecté: konointer@gmail.com");
+          
+          // Vérifier d'abord si ce compte a déjà un rôle
+          const { data: existingRole, error: checkError } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", user.id)
+            .maybeSingle();
+            
+          if (checkError) {
+            console.error("Erreur lors de la vérification du rôle existant:", checkError);
+          }
+          
+          // Si le rôle n'est pas super_admin ou n'existe pas, l'attribuer
+          if (!existingRole || existingRole.role !== "super_admin") {
+            console.log("Attribution ou correction du rôle super_admin");
+            
+            const { error: upsertError } = await supabase
+              .from("user_roles")
+              .upsert({ 
+                user_id: user.id, 
+                role: "super_admin" as UserRole 
+              }, { onConflict: "user_id" });
 
-        if (!rpcError && rpcData) {
-          console.log("Rôle trouvé via RPC:", rpcData);
-          setRole(rpcData as UserRole);
-          setIsLoading(false);
-          return;
+            if (upsertError) {
+              console.error("Erreur lors de l'attribution du rôle super_admin:", upsertError);
+            } else {
+              console.log("Rôle super_admin attribué avec succès");
+              setRole("super_admin" as UserRole);
+              setIsLoading(false);
+              return;
+            }
+          } else {
+            console.log("L'utilisateur a déjà le rôle super_admin");
+            setRole("super_admin" as UserRole);
+            setIsLoading(false);
+            return;
+          }
         }
         
-        if (rpcError) {
-          console.warn("Erreur avec la fonction RPC:", rpcError);
-        }
-
-        // Méthode 2: Requête directe à la table user_roles
+        // Méthode standard de récupération du rôle pour les autres utilisateurs
+        // Méthode 1: Requête directe à la table user_roles (plus fiable)
         console.log("Tentative de récupération directe depuis user_roles...");
         const { data: userData, error: userError } = await supabase
           .from("user_roles")
@@ -104,8 +152,24 @@ export const useUserRole = () => {
           return;
         }
         
+        // Méthode 2: Utiliser la fonction RPC (comme fallback)
         if (userError) {
           console.warn("Erreur lors de la récupération directe:", userError);
+        }
+        
+        console.log("Tentative avec la fonction RPC...");
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('get_user_role', { user_id: user.id });
+
+        if (!rpcError && rpcData) {
+          console.log("Rôle trouvé via RPC:", rpcData);
+          setRole(rpcData as UserRole);
+          setIsLoading(false);
+          return;
+        }
+        
+        if (rpcError) {
+          console.warn("Erreur avec la fonction RPC:", rpcError);
         }
 
         // Méthode 3: Vérification si c'est le premier utilisateur
