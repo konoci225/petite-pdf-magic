@@ -23,8 +23,8 @@ export const FixRoleButton = () => {
       
       // Utilisation de la fonction RPC personnalisée via Supabase
       const { error: upsertError } = await supabase.rpc(
-        // Type assertion pour contourner la vérification TypeScript
-        'force_set_super_admin_role' as unknown as string, 
+        // Type assertion directe vers l'un des types attendus
+        'force_set_super_admin_role',
         { target_user_id: user.id }
       );
       
