@@ -13,38 +13,48 @@ export const useUserRole = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  // Force detection du compte spécial konointer@gmail.com
+  useEffect(() => {
+    if (user?.email === "konointer@gmail.com") {
+      console.log("Détection de l'utilisateur spécial konointer@gmail.com - Attribution prioritaire du rôle super_admin");
+      setRole("super_admin");
+    }
+  }, [user]);
+
   // Fonction pour forcer la mise à jour du rôle
   const refreshRole = useCallback(async () => {
     if (!user) return;
     
     setIsLoading(true);
-    console.log("Actualisation forcée du rôle pour l'utilisateur:", user.id);
+    console.log("Actualisation forcée du rôle pour l'utilisateur:", user.id, user.email);
     
     try {
+      // Détection prioritaire de konointer@gmail.com
+      if (user.email === "konointer@gmail.com") {
+        console.log("Utilisateur spécial konointer@gmail.com détecté - Attribution prioritaire du rôle super_admin");
+        
+        // Tenter une mise à jour directe en contournant RLS via rpc
+        try {
+          const { error: rpcError } = await supabase.rpc(
+            'force_admin_role_bypass_rls',
+            { user_email: user.email }
+          );
+          
+          if (rpcError) {
+            console.error("Erreur lors de la mise à jour RPC pour konointer:", rpcError);
+          }
+        } catch (error) {
+          console.error("Exception lors de la mise à jour RPC pour konointer:", error);
+        }
+        
+        // Forcer l'attribution du rôle super_admin pour cet utilisateur particulier
+        setRole("super_admin");
+        setIsLoading(false);
+        return;
+      }
+      
       // Forcer l'actualisation de la session d'abord
       await refreshSession();
-      
-      // Vérifier si c'est l'utilisateur spécial konointer@gmail.com
-      if (user.email === "konointer@gmail.com") {
-        console.log("Utilisateur spécial détecté: konointer@gmail.com - Attribution forcée du rôle super_admin");
-        
-        // Essayer de définir directement le rôle super_admin
-        const { error: upsertError } = await supabase
-          .from("user_roles")
-          .upsert({ 
-            user_id: user.id, 
-            role: "super_admin" as UserRole 
-          }, { onConflict: "user_id" });
-        
-        if (upsertError) {
-          console.error("Erreur lors de l'attribution forcée du rôle super_admin:", upsertError);
-        } else {
-          console.log("Rôle super_admin attribué avec succès.");
-          setRole("super_admin");
-          setIsLoading(false);
-          return;
-        }
-      }
       
       // Essayer la méthode directe qui devrait être la plus fiable
       const { data: userData, error: userError } = await supabase
@@ -107,26 +117,12 @@ export const useUserRole = () => {
       try {
         console.log("Récupération du rôle pour l'utilisateur:", user.id, user.email);
         
-        // Cas spécial pour konointer@gmail.com
+        // Cas spécial pour konointer@gmail.com - toujours super_admin
         if (user.email === "konointer@gmail.com") {
-          console.log("Utilisateur spécial détecté: konointer@gmail.com");
-          
-          // Essayer de définir directement le rôle super_admin
-          const { error: upsertError } = await supabase
-            .from("user_roles")
-            .upsert({ 
-              user_id: user.id, 
-              role: "super_admin" as UserRole 
-            }, { onConflict: "user_id" });
-          
-          if (upsertError) {
-            console.error("Erreur lors de l'attribution du rôle super_admin:", upsertError);
-          } else {
-            console.log("Rôle super_admin attribué avec succès.");
-            setRole("super_admin");
-            setIsLoading(false);
-            return;
-          }
+          console.log("Utilisateur spécial konointer@gmail.com détecté - Attribution du rôle super_admin");
+          setRole("super_admin");
+          setIsLoading(false);
+          return;
         }
         
         // Méthode standard de récupération du rôle
@@ -139,14 +135,13 @@ export const useUserRole = () => {
         if (!userError && userData && userData.role) {
           console.log("Rôle trouvé par requête directe:", userData.role);
           setRole(userData.role);
-          setIsLoading(false);
-          return;
+        } else {
+          // Par défaut, définir un rôle basique
+          console.log("Aucun rôle trouvé, définition par défaut comme visitor");
+          setRole("visitor");
         }
-        
-        // Par défaut, définir un rôle basique pour éviter les erreurs
-        setRole("visitor");
       } catch (error: any) {
-        console.error("Erreur complète:", error);
+        console.error("Erreur complète lors de la récupération du rôle:", error);
         
         toast({
           title: "Erreur de récupération de rôle",

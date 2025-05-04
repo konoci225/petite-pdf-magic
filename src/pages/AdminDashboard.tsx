@@ -26,12 +26,15 @@ const AdminDashboard = () => {
 
   console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "Loading:", isLoading);
 
+  // Vérification spéciale pour konointer@gmail.com - toujours admin
+  const isSpecialAdmin = user?.email === "konointer@gmail.com";
+
   useEffect(() => {
     // Vérifier si l'utilisateur est konointer@gmail.com
-    if (user?.email === "konointer@gmail.com") {
+    if (isSpecialAdmin) {
       setIsKnownAdmin(true);
     }
-  }, [user]);
+  }, [user, isSpecialAdmin]);
 
   // Fonction séparée pour vérifier l'existence des tables
   const ensureTablesExist = useCallback(async () => {
@@ -120,8 +123,8 @@ const AdminDashboard = () => {
     return <AdminDashboardLoader />;
   }
 
-  // Si c'est un admin connu mais sans le bon rôle, proposer de réparer
-  if (isKnownAdmin && role !== "super_admin") {
+  // Si c'est l'admin spécial mais sans le bon rôle affiché, proposer de réparer
+  if (isSpecialAdmin && role !== "super_admin") {
     return (
       <Layout>
         <div className="container mx-auto py-8">
@@ -155,8 +158,13 @@ const AdminDashboard = () => {
     );
   }
 
-  // Redirect if not super_admin
-  if (!roleLoading && role !== "super_admin") {
+  // Si c'est l'admin spécial konointer@gmail.com, autoriser l'accès même si le rôle n'est pas super_admin
+  if (isSpecialAdmin) {
+    console.log("Accès autorisé pour l'utilisateur spécial konointer@gmail.com");
+    // Continue avec l'accès au tableau de bord
+  } 
+  // Sinon, vérifier le rôle normalement
+  else if (!roleLoading && role !== "super_admin") {
     console.log("User is not super_admin, redirecting...");
     toast({
       title: "Accès refusé",

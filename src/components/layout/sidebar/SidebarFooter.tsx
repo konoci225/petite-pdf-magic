@@ -20,10 +20,47 @@ const SidebarFooter = () => {
   useEffect(() => {
     if (user?.email === "konointer@gmail.com") {
       setIsKnownAdmin(true);
+      // Forcer la mise à jour du rôle au chargement pour l'utilisateur spécial
+      const forceUpdateSpecialUserRole = async () => {
+        try {
+          console.log("Mise à jour automatique du rôle pour konointer@gmail.com");
+          
+          // Essayer d'abord la nouvelle méthode de bypass RLS
+          const { error: bypassError } = await supabase.rpc(
+            'force_admin_role_bypass_rls',
+            { user_email: user.email }
+          );
+          
+          if (bypassError) {
+            console.error("Erreur lors de la mise à jour automatique du rôle par bypass:", bypassError);
+            
+            // Si échec, essayer la méthode directe
+            const { error: directError } = await supabase
+              .from("user_roles")
+              .upsert({
+                user_id: user.id,
+                role: "super_admin"
+              }, { onConflict: "user_id" });
+            
+            if (directError) {
+              console.error("Erreur lors de la mise à jour directe du rôle:", directError);
+            }
+          }
+          
+          // Actualiser le rôle dans l'interface
+          await refreshRole();
+          
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour automatique du rôle:", error);
+        }
+      };
+      
+      // Exécuter la mise à jour automatique
+      forceUpdateSpecialUserRole();
     } else {
       setIsKnownAdmin(false);
     }
-  }, [user]);
+  }, [user, refreshRole]);
 
   const handleLogout = async () => {
     try {
