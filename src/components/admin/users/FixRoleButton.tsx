@@ -18,23 +18,46 @@ export const FixRoleButton = () => {
     
     setIsLoading(true);
     try {
-      // Using direct upsert approach instead of RPC function since we're having permission issues
-      console.log("Attempting to set super_admin role for:", user.id);
+      console.log("Tentative de réparation des droits d'accès pour:", user.id, user.email);
       
-      // Directly upsert into user_roles table
-      const { error: directUpsertError } = await supabase
-        .from("user_roles")
-        .upsert({ 
-          user_id: user.id,
-          role: "super_admin" 
-        }, { onConflict: "user_id" });
+      let success = false;
       
-      if (directUpsertError) {
-        console.error("Error during direct upsert:", directUpsertError);
-        throw new Error(`Échec de l'attribution du rôle: ${directUpsertError.message}`);
+      // Méthode 1: Essayer d'abord avec la fonction RPC renforcée
+      try {
+        const { error: rpcError } = await supabase.rpc(
+          'force_set_super_admin_role',
+          { target_user_id: user.id }
+        );
+        
+        if (!rpcError) {
+          console.log("Rôle attribué avec succès via fonction RPC");
+          success = true;
+        } else {
+          console.error("Erreur lors de l'utilisation de la fonction RPC:", rpcError);
+        }
+      } catch (rpcError) {
+        console.error("Exception lors de l'appel de la fonction RPC:", rpcError);
       }
       
-      // Verify that the role was properly assigned
+      // Méthode 2: Si la méthode RPC échoue, essayer la méthode directe avec les nouvelles politiques RLS
+      if (!success) {
+        console.log("Tentative d'attribution directe du rôle super_admin");
+        const { error: directUpsertError } = await supabase
+          .from("user_roles")
+          .upsert({ 
+            user_id: user.id,
+            role: "super_admin" 
+          }, { onConflict: "user_id" });
+        
+        if (directUpsertError) {
+          console.error("Erreur lors de l'attribution directe:", directUpsertError);
+          throw new Error(`Échec de l'attribution du rôle: ${directUpsertError.message}`);
+        } else {
+          console.log("Rôle attribué avec succès via upsert direct");
+        }
+      }
+      
+      // Vérifier que le rôle a été correctement attribué
       const { data: checkRole, error: checkError } = await supabase
         .from("user_roles")
         .select("role")
@@ -42,13 +65,13 @@ export const FixRoleButton = () => {
         .maybeSingle();
         
       if (checkError || !checkRole || checkRole.role !== "super_admin") {
-        console.error("Role verification failed:", checkError || "Incorrect role");
+        console.error("Vérification du rôle échouée:", checkError || "Rôle incorrect");
         throw new Error("La vérification du rôle a échoué");
       }
       
-      console.log("Role successfully assigned:", checkRole);
+      console.log("Rôle vérifié avec succès:", checkRole);
       
-      // Refresh the session and role
+      // Actualiser la session et le rôle
       await refreshSession();
       await refreshRole();
       
@@ -57,12 +80,12 @@ export const FixRoleButton = () => {
         description: "Vous avez maintenant le rôle Super Admin. La page va se recharger.",
       });
       
-      // Reload the page to apply the new permissions
+      // Recharger la page pour appliquer les nouvelles permissions
       setTimeout(() => {
         window.location.reload();
       }, 1500);
     } catch (error: any) {
-      console.error("Detailed error during role repair:", error);
+      console.error("Détail de l'erreur lors de la réparation des droits:", error);
       toast({
         title: "Erreur",
         description: "Impossible de réparer les droits d'accès: " + (error.message || "Erreur inconnue"),
