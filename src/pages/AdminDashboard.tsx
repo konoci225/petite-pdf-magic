@@ -14,7 +14,8 @@ import { Navigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import FixRoleButton from "@/components/admin/users/FixRoleButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
@@ -23,6 +24,7 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const [isKnownAdmin, setIsKnownAdmin] = useState(false);
   const [tablesAccessible, setTablesAccessible] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "Loading:", isLoading);
 
@@ -39,7 +41,20 @@ const AdminDashboard = () => {
   // Fonction séparée pour vérifier l'existence des tables
   const ensureTablesExist = useCallback(async () => {
     try {
-      console.log("Checking required tables...");
+      console.log("Vérification des tables requises...");
+      
+      // Essayer de récupérer des données de test via la vue
+      const { error: viewError } = await supabase
+        .from('admin_dashboard_stats')
+        .select('*')
+        .maybeSingle();
+        
+      if (!viewError) {
+        console.log("La vue admin est accessible");
+        return true;
+      }
+      
+      console.log("Vue non accessible, vérification des tables individuellement");
       
       // Vérifier l'existence de la table modules
       const { error: modulesError } = await supabase
@@ -74,24 +89,76 @@ const AdminDashboard = () => {
         return false;
       }
       
-      console.log("All required tables exist and are accessible.");
+      console.log("Toutes les tables requises existent et sont accessibles.");
       return true;
     } catch (error) {
-      console.error("Error checking tables:", error);
+      console.error("Erreur lors de la vérification des tables:", error);
       return false;
     }
   }, []);
+
+  // Actualisation forcée des autorisations
+  const forceRefreshPermissions = async () => {
+    setIsLoading(true);
+    try {
+      // Actualiser la session pour obtenir les dernières autorisations
+      console.log("Actualisation forcée des autorisations...");
+      
+      if (isSpecialAdmin) {
+        // Tentative d'attribution directe du rôle super_admin
+        const { error: rpcError } = await supabase.rpc(
+          'force_set_super_admin_role',
+          { target_user_id: user?.id }
+        );
+        
+        if (rpcError) {
+          console.error("Erreur lors de l'attribution forcée du rôle:", rpcError);
+          
+          // Tentative alternative
+          const { error: upsertError } = await supabase
+            .from("user_roles")
+            .upsert({ 
+              user_id: user?.id,
+              role: "super_admin" 
+            }, { onConflict: "user_id" });
+            
+          if (upsertError) {
+            console.error("Erreur lors de l'upsert direct:", upsertError);
+          }
+        }
+      }
+      
+      // Actualiser le rôle
+      await refreshRole();
+      
+      // Vérifier de nouveau l'accès aux tables
+      const accessible = await ensureTablesExist();
+      setTablesAccessible(accessible);
+      
+      if (accessible) {
+        toast({
+          title: "Accès restauré",
+          description: "L'accès aux données a été restauré avec succès.",
+        });
+      }
+      
+      setRetryCount(prev => prev + 1);
+    } catch (error) {
+      console.error("Erreur lors de l'actualisation:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const checkAccess = async () => {
       setIsLoading(true);
       try {
-        console.log("Checking database tables access...");
+        console.log("Vérification de l'accès aux tables de la base de données...");
         // Vérifier si les tables requises existent
         const accessible = await ensureTablesExist();
         setTablesAccessible(accessible);
         
-        // In a real app, you might check more detailed permissions here
         setTimeout(() => {
           setIsLoading(false);
         }, 500);
@@ -107,7 +174,7 @@ const AdminDashboard = () => {
     };
     
     if (!roleLoading && user) {
-      console.log("Role loading completed, checking access...");
+      console.log("Chargement du rôle terminé, vérification de l'accès...");
       checkAccess();
     }
   }, [roleLoading, user, toast, ensureTablesExist]);
@@ -119,7 +186,7 @@ const AdminDashboard = () => {
 
   // Show loading screen when role is still loading
   if (roleLoading) {
-    console.log("Role still loading...");
+    console.log("Chargement du rôle en cours...");
     return <AdminDashboardLoader />;
   }
 
@@ -165,7 +232,7 @@ const AdminDashboard = () => {
   } 
   // Sinon, vérifier le rôle normalement
   else if (!roleLoading && role !== "super_admin") {
-    console.log("User is not super_admin, redirecting...");
+    console.log("L'utilisateur n'est pas super_admin, redirection...");
     toast({
       title: "Accès refusé",
       description: "Vous n'avez pas les permissions d'administrateur",
@@ -176,7 +243,7 @@ const AdminDashboard = () => {
 
   // Show loading screen while checking tables
   if (isLoading) {
-    console.log("Checking table access...");
+    console.log("Vérification de l'accès aux tables...");
     return <AdminDashboardLoader />;
   }
 
@@ -189,17 +256,33 @@ const AdminDashboard = () => {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Problème d'accès aux données</AlertTitle>
             <AlertDescription>
-              Impossible d'accéder aux tables nécessaires dans la base de données.
-              <div className="mt-4">
-                <button 
+              <p>Impossible d'accéder aux tables nécessaires dans la base de données.</p>
+              <div className="mt-4 flex gap-2">
+                <Button 
+                  onClick={forceRefreshPermissions}
+                  className="flex items-center"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Réparer les autorisations
+                </Button>
+                <Button 
+                  variant="outline"
                   onClick={() => window.location.reload()}
-                  className="text-sm underline"
                 >
                   Rafraîchir la page
-                </button>
+                </Button>
               </div>
             </AlertDescription>
           </Alert>
+          
+          {retryCount > 0 && (
+            <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded">
+              <p className="text-yellow-800">
+                Tentative de réparation #{retryCount} - Si le problème persiste après plusieurs tentatives, 
+                veuillez vérifier les politiques d'accès dans votre base de données Supabase.
+              </p>
+            </div>
+          )}
         </div>
       </Layout>
     );

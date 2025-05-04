@@ -4,6 +4,8 @@ import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useSettings } from "@/hooks/useSettings";
+import { useTheme } from "@/hooks/useTheme";
+import { useLanguage, Language } from "@/hooks/useLanguage";
 import {
   Card,
   CardContent,
@@ -33,7 +35,6 @@ import {
   Moon, 
   Sun, 
   Lock, 
-  FileText, 
   Save, 
   Database,
   Loader2
@@ -43,6 +44,9 @@ const SettingsPage = () => {
   const { user } = useAuth();
   const { role } = useUserRole();
   const { settings, updateSettings, isLoading } = useSettings();
+  const { theme, changeTheme } = useTheme();
+  const { language, changeLanguage } = useLanguage();
+  
   const isSuperAdmin = role === "super_admin";
   
   const handleNotificationChange = (key: keyof typeof settings) => {
@@ -51,8 +55,8 @@ const SettingsPage = () => {
   
   const saveGeneralSettings = () => {
     updateSettings({
-      theme: settings.theme,
-      language: settings.language,
+      theme: theme as "light" | "dark" | "system",
+      language: language,
       fileDisplayMode: settings.fileDisplayMode
     }, "généraux");
   };
@@ -105,8 +109,8 @@ const SettingsPage = () => {
                 <div className="space-y-2">
                   <Label htmlFor="language">Langue</Label>
                   <Select 
-                    value={settings.language} 
-                    onValueChange={(value) => updateSettings({ language: value })}
+                    value={language} 
+                    onValueChange={(value) => changeLanguage(value as Language)}
                   >
                     <SelectTrigger className="w-full sm:w-72">
                       <SelectValue placeholder="Sélectionnez une langue" />
@@ -126,25 +130,25 @@ const SettingsPage = () => {
                   <Label htmlFor="theme">Thème</Label>
                   <div className="flex items-center space-x-4">
                     <Button 
-                      variant={settings.theme === "light" ? "default" : "outline"} 
+                      variant={theme === "light" ? "default" : "outline"} 
                       className="flex items-center"
-                      onClick={() => updateSettings({ theme: "light" })}
+                      onClick={() => changeTheme("light")}
                     >
                       <Sun className="h-4 w-4 mr-2" />
                       Clair
                     </Button>
                     <Button 
-                      variant={settings.theme === "dark" ? "default" : "outline"} 
+                      variant={theme === "dark" ? "default" : "outline"} 
                       className="flex items-center"
-                      onClick={() => updateSettings({ theme: "dark" })}
+                      onClick={() => changeTheme("dark")}
                     >
                       <Moon className="h-4 w-4 mr-2" />
                       Sombre
                     </Button>
                     <Button 
-                      variant={settings.theme === "system" ? "default" : "outline"} 
+                      variant={theme === "system" ? "default" : "outline"} 
                       className="flex items-center"
-                      onClick={() => updateSettings({ theme: "system" })}
+                      onClick={() => changeTheme("system")}
                     >
                       <Laptop className="h-4 w-4 mr-2" />
                       Système

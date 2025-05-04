@@ -31,7 +31,20 @@ const defaultSettings: UserSettings = {
 export const useSettings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  const [settings, setSettings] = useState<UserSettings>(() => {
+    // Charger les paramètres depuis localStorage si disponibles
+    if (user) {
+      const savedSettings = localStorage.getItem(`user_settings_${user.id}`);
+      if (savedSettings) {
+        try {
+          return JSON.parse(savedSettings);
+        } catch (e) {
+          console.error("Erreur lors du parsing des paramètres:", e);
+        }
+      }
+    }
+    return defaultSettings;
+  });
   const [isLoading, setIsLoading] = useState(true);
   
   // Function to load settings
@@ -44,10 +57,26 @@ export const useSettings = () => {
 
     setIsLoading(true);
     try {
-      // Settings could be stored in a user_settings table, here we use localStorage as a simple demo
+      // Essayer de charger depuis localStorage d'abord
       const savedSettings = localStorage.getItem(`user_settings_${user.id}`);
       if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
+        const parsedSettings = JSON.parse(savedSettings);
+        setSettings(parsedSettings);
+        
+        // Appliquer le thème immédiatement
+        const root = window.document.documentElement;
+        root.classList.remove("light", "dark");
+        if (parsedSettings.theme === "system") {
+          const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+          root.classList.add(systemTheme);
+        } else {
+          root.classList.add(parsedSettings.theme);
+        }
+        
+        // Appliquer la langue immédiatement
+        document.documentElement.lang = parsedSettings.language || "fr";
       }
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -60,12 +89,31 @@ export const useSettings = () => {
   
   // Function to update settings
   const updateSettings = async (newSettings: Partial<UserSettings>, category?: string) => {
-    if (!user) return;
+    if (!user) return false;
     
     try {
       const updatedSettings = { ...settings, ...newSettings };
       localStorage.setItem(`user_settings_${user.id}`, JSON.stringify(updatedSettings));
       setSettings(updatedSettings);
+      
+      // Appliquer le thème immédiatement si modifié
+      if (newSettings.theme) {
+        const root = window.document.documentElement;
+        root.classList.remove("light", "dark");
+        if (newSettings.theme === "system") {
+          const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+          root.classList.add(systemTheme);
+        } else {
+          root.classList.add(newSettings.theme);
+        }
+      }
+      
+      // Appliquer la langue immédiatement si modifiée
+      if (newSettings.language) {
+        document.documentElement.lang = newSettings.language;
+      }
       
       toast({
         title: "Paramètres sauvegardés",
@@ -74,18 +122,23 @@ export const useSettings = () => {
           : "Vos paramètres ont été mis à jour avec succès.",
       });
       
-      // In a real app, you would call an API to update settings in the database
-      // const { error } = await supabase
-      //   .from('user_settings')
-      //   .upsert({ 
-      //     user_id: user.id,
-      //     settings: updatedSettings,
-      //     updated_at: new Date().toISOString()
-      //   });
-      // if (error) throw error;
+      // Pour un usage réel, sauvegarde dans la base de données
+      // try {
+      //   const { error } = await supabase
+      //     .from('user_settings')
+      //     .upsert({ 
+      //       user_id: user.id,
+      //       settings: updatedSettings,
+      //       updated_at: new Date().toISOString()
+      //     });
+      //   if (error) throw error;
+      // } catch (dbError) {
+      //   console.error("Erreur lors de la sauvegarde en BDD:", dbError);
+      // }
       
       return true;
     } catch (error: any) {
+      console.error("Erreur lors de la mise à jour des paramètres:", error);
       toast({
         title: "Erreur",
         description: "Impossible de mettre à jour les paramètres: " + error.message,
@@ -100,5 +153,5 @@ export const useSettings = () => {
     loadSettings();
   }, [user]);
   
-  return { settings, updateSettings, isLoading };
+  return { settings, updateSettings, isLoading, loadSettings };
 };

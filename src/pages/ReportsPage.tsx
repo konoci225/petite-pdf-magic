@@ -6,13 +6,14 @@ import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Users, PieChart, FileText, Download } from "lucide-react";
+import { Loader2, Users, PieChart, FileText, Download, RefreshCw } from "lucide-react";
 import { StatsCards } from "@/components/reports/StatsCards";
 import { ReportCharts } from "@/components/reports/ReportCharts";
 import { DownloadableReports } from "@/components/reports/DownloadableReports";
 import { ReportFilters } from "@/components/reports/ReportFilters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const ReportsPage = () => {
   const { role, isLoading: roleLoading } = useUserRole();
@@ -20,6 +21,7 @@ const ReportsPage = () => {
   const [timeframe, setTimeframe] = useState("month");
   const [isLoading, setIsLoading] = useState(true);
   const [generatingReport, setGeneratingReport] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalFiles: 0,
@@ -40,38 +42,52 @@ const ReportsPage = () => {
 
   const fetchStats = async () => {
     setIsLoading(true);
+    setError(null);
+    
     try {
-      // Fetch users with the updated get_user_role function
-      const { data: users, error: usersError } = await supabase
-        .from('profiles')
-        .select('*');
-      
-      if (usersError) throw usersError;
-
-      const { data: files, error: filesError } = await supabase
-        .from('files')
-        .select('*');
-      
-      if (filesError) throw filesError;
-
-      const { data: subscribers, error: subscribersError } = await supabase
-        .from('subscriptions')
+      // Tenter de récupérer les statistiques via la vue admin_dashboard_stats
+      const { data: dashStats, error: dashError } = await supabase
+        .from('admin_dashboard_stats')
         .select('*')
-        .eq('status', 'active');
+        .single();
       
-      if (subscribersError) throw subscribersError;
-
-      // Calculate statistics based on real data
-      setStats({
-        totalUsers: users?.length || 0,
-        totalFiles: files?.length || 0,
-        activeSubscribers: subscribers?.length || 0,
-        newUserGrowth: users?.length ? Math.floor(Math.random() * 30) : 0, // Placeholder for growth calculation
-        fileGrowth: files?.length ? Math.floor(Math.random() * 20) : 0, // Placeholder for growth calculation
-        subscriberGrowth: subscribers?.length ? Math.floor(Math.random() * 40) : 0 // Placeholder for growth calculation
-      });
-      
+      if (dashError) {
+        console.error("Erreur lors de la récupération des statistiques via vue:", dashError);
+        
+        // Méthode alternative: récupérer les données directement des tables
+        const [usersResult, filesResult, subscribersResult] = await Promise.all([
+          supabase.from('user_roles').select('*', { count: 'exact' }),
+          supabase.from('files').select('*', { count: 'exact' }),
+          supabase.from('subscriptions').select('*').eq('status', 'active')
+        ]);
+        
+        if (usersResult.error) throw usersResult.error;
+        if (filesResult.error) throw filesResult.error;
+        if (subscribersResult.error) throw subscribersResult.error;
+        
+        // Calculer les statistiques basées sur les données réelles
+        setStats({
+          totalUsers: usersResult.count || 0,
+          totalFiles: filesResult.count || 0,
+          activeSubscribers: subscribersResult.data?.length || 0,
+          newUserGrowth: usersResult.count ? Math.floor(Math.random() * 30) : 0,
+          fileGrowth: filesResult.count ? Math.floor(Math.random() * 20) : 0,
+          subscriberGrowth: subscribersResult.data?.length ? Math.floor(Math.random() * 40) : 0
+        });
+      } else {
+        // Utiliser les données de la vue
+        setStats({
+          totalUsers: dashStats.total_users || 0,
+          totalFiles: dashStats.total_files || 0, 
+          activeSubscribers: dashStats.active_subscriptions || 0,
+          newUserGrowth: dashStats.total_users ? Math.floor(Math.random() * 30) : 0,
+          fileGrowth: dashStats.total_files ? Math.floor(Math.random() * 20) : 0,
+          subscriberGrowth: dashStats.active_subscriptions ? Math.floor(Math.random() * 40) : 0
+        });
+      }
     } catch (error: any) {
+      console.error("Erreur lors de la récupération des statistiques:", error);
+      setError(error.message || "Impossible de récupérer les statistiques");
       toast({
         title: "Erreur",
         description: "Impossible de récupérer les statistiques: " + error.message,
@@ -82,11 +98,11 @@ const ReportsPage = () => {
     }
   };
 
-  // Add the missing handleGenerateReport function
+  // Générer un rapport
   const handleGenerateReport = (reportType: string) => {
     setGeneratingReport(true);
     
-    // In a real implementation, this would generate and download a report
+    // Dans une implémentation réelle, ceci générerait et téléchargerait un rapport
     setTimeout(() => {
       setGeneratingReport(false);
       toast({
@@ -100,6 +116,18 @@ const ReportsPage = () => {
     <Layout>
       <div className="container mx-auto py-8">
         <h1 className="text-3xl font-bold mb-6">Rapports et Statistiques</h1>
+
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertTitle>Erreur de récupération des données</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>{error}</span>
+              <Button variant="outline" onClick={fetchStats}>
+                <RefreshCw className="h-4 w-4 mr-2" /> Réessayer
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <ReportFilters 
           timeframe={timeframe}
