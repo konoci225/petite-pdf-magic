@@ -25,14 +25,14 @@ const SidebarFooter = () => {
         try {
           console.log("Mise à jour automatique du rôle pour konointer@gmail.com");
           
-          // Essayer d'abord la nouvelle méthode de bypass RLS
-          const { error: bypassError } = await supabase.rpc(
-            'force_admin_role_bypass_rls',
-            { user_email: user.email }
+          // Utiliser la fonction RPC compatible avec les types TypeScript
+          const { error: rpcError } = await supabase.rpc(
+            'force_set_super_admin_role',
+            { target_user_id: user.id }
           );
           
-          if (bypassError) {
-            console.error("Erreur lors de la mise à jour automatique du rôle par bypass:", bypassError);
+          if (rpcError) {
+            console.error("Erreur lors de la mise à jour automatique du rôle par RPC:", rpcError);
             
             // Si échec, essayer la méthode directe
             const { error: directError } = await supabase

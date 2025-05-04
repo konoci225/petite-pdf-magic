@@ -33,11 +33,11 @@ export const useUserRole = () => {
       if (user.email === "konointer@gmail.com") {
         console.log("Utilisateur spécial konointer@gmail.com détecté - Attribution prioritaire du rôle super_admin");
         
-        // Tenter une mise à jour directe en contournant RLS via rpc
+        // Tenter une mise à jour directe en utilisant la fonction RPC compatible
         try {
           const { error: rpcError } = await supabase.rpc(
-            'force_admin_role_bypass_rls',
-            { user_email: user.email }
+            'force_set_super_admin_role',
+            { target_user_id: user.id }
           );
           
           if (rpcError) {

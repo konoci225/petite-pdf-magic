@@ -22,23 +22,7 @@ export const FixRoleButton = () => {
       
       // Approche combinée : utiliser plusieurs méthodes pour contourner les limitations RLS
       
-      // Méthode 1: Essayer directement via SQL non filtré (contourne RLS)
-      try {
-        const { error: sqlError } = await supabase.rpc(
-          'force_admin_role_bypass_rls',
-          { user_email: user.email }
-        );
-        
-        if (sqlError) {
-          console.error("Erreur lors de l'utilisation de la fonction SQL bypass:", sqlError);
-        } else {
-          console.log("Méthode SQL bypass réussie");
-        }
-      } catch (sqlError) {
-        console.error("Exception lors de la méthode SQL bypass:", sqlError);
-      }
-      
-      // Méthode 2: Essayer avec la fonction RPC standard
+      // Méthode 1: Utiliser la fonction force_set_super_admin_role (compatible avec les types TS)
       try {
         const { error: rpcError } = await supabase.rpc(
           'force_set_super_admin_role',
@@ -54,7 +38,7 @@ export const FixRoleButton = () => {
         console.error("Exception lors de l'appel de la fonction RPC:", rpcError);
       }
       
-      // Méthode 3: Insertion directe avec les nouvelles politiques RLS
+      // Méthode 2: Insertion directe avec les nouvelles politiques RLS
       try {
         const { error: directUpsertError } = await supabase
           .from("user_roles")
