@@ -7,16 +7,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-
-interface Module {
-  id: string;
-  module_name: string;
-  description: string | null;
-  is_active: boolean;
-  is_premium: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import { Module } from "./ModuleService";
 
 interface ModuleDeleteDialogProps {
   selectedModule: Module | null;

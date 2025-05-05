@@ -9,8 +9,8 @@ export interface Module {
   description: string | null;
   is_active: boolean;
   is_premium: boolean;
-  created_at?: string;
-  updated_at?: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ModuleFormData {
@@ -65,7 +65,7 @@ export const useModuleService = () => {
         throw error;
       }
       
-      return modules || [];
+      return modules as Module[] || [];
     } catch (error: any) {
       console.error("Échec de la récupération des modules:", error);
       toast({

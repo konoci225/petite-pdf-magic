@@ -4,16 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Pencil, Trash2 } from "lucide-react";
-
-interface Module {
-  id: string;
-  module_name: string;
-  description: string | null;
-  is_active: boolean;
-  is_premium: boolean;
-  created_at: string;
-  updated_at: string;
-}
+import { Module } from "./ModuleService";
 
 interface ModulesTableProps {
   modules: Module[];
