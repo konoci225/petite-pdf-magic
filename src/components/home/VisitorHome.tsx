@@ -24,7 +24,7 @@ const VisitorHome = () => {
       </div>
       
       {isSpecialUser && role !== "super_admin" && (
-        <Alert variant="warning">
+        <Alert variant="destructive">
           <AlertTitle>Compte administrateur détecté</AlertTitle>
           <AlertDescription className="flex flex-col gap-4">
             <p>
