@@ -43,13 +43,14 @@ const AdminDashboard = () => {
     try {
       console.log("Vérification des tables requises...");
       
-      // Tenter d'accéder à la vue admin_dashboard_stats
-      // Utiliser la méthode rpc pour accéder à la vue sans problèmes de typage
+      // Use normal fetch for the view instead of rpc call since the function doesn't exist
       const { data, error } = await supabase
-        .rpc('get_admin_dashboard_stats');
+        .from('admin_dashboard_stats')
+        .select('*')
+        .limit(1);
         
       if (error) {
-        console.error("Erreur lors de la récupération des statistiques via RPC:", error);
+        console.error("Erreur lors de la récupération des statistiques:", error);
         
         // Méthode alternative: vérifier l'existence de tables individuelles
         const { error: modulesError } = await supabase

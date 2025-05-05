@@ -2,7 +2,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { FixRoleButton } from "@/components/admin/users/FixRoleButton";
+import FixRoleButton from "@/components/admin/users/FixRoleButton"; // Fixed import syntax
 import { useAuth } from "@/providers/AuthProvider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from "lucide-react";

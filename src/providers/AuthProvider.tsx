@@ -9,6 +9,7 @@ interface AuthContextProps {
   loading: boolean;
   error: Error | null;
   refreshSession: () => Promise<void>;
+  signOut: () => Promise<void>; // Added signOut method to the interface
 }
 
 export const AuthContext = createContext<AuthContextProps>({
@@ -17,6 +18,7 @@ export const AuthContext = createContext<AuthContextProps>({
   loading: true,
   error: null,
   refreshSession: async () => {},
+  signOut: async () => {}, // Added empty implementation as default
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -50,6 +52,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setError(err);
     }
   }, []);
+
+  // Add signOut function
+  const signOut = async (): Promise<void> => {
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) throw signOutError;
+      
+      setUser(null);
+      setSession(null);
+    } catch (err: any) {
+      console.error("Erreur lors de la déconnexion:", err);
+      setError(err);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -108,7 +124,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     session,
     loading,
     error,
-    refreshSession
+    refreshSession,
+    signOut // Added signOut to context value
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
