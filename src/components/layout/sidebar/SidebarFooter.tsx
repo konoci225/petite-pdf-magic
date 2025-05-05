@@ -58,7 +58,7 @@ export const SidebarFooter = () => {
         toast({
           title: "Attention",
           description: "Votre rôle Super Admin n'a pas été appliqué correctement. Utilisez le bouton 'Réparer les autorisations' dans le tableau de bord.",
-          variant: "default", // Changed from "warning" to "default" as "warning" is not a valid variant
+          variant: "default", // Variant corrigé
         });
       }
     } catch (error) {

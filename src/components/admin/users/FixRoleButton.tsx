@@ -1,24 +1,24 @@
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/providers/AuthProvider';
-import { supabase } from '@/integrations/supabase/client';
-import { useUserRole } from '@/hooks/useUserRole';
-import { Loader2 } from 'lucide-react';
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/providers/AuthProvider";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useUserRole } from "@/hooks/useUserRole";
+import { Shield, Loader2 } from "lucide-react";
 
-const FixRoleButton: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+const FixRoleButton = () => {
+  const [isRepairing, setIsRepairing] = useState(false);
   const { user } = useAuth();
   const { refreshRole } = useUserRole();
+  const { toast } = useToast();
 
-  const handleFixRole = async () => {
+  const handleRepairPermissions = async () => {
     if (!user) return;
     
-    setIsLoading(true);
+    setIsRepairing(true);
     try {
-      // Essayez d'abord en appelant la fonction RPC
+      // First try using the RPC function
       const { error: rpcError } = await supabase.rpc(
         'force_set_super_admin_role',
         { target_user_id: user.id }
@@ -27,7 +27,7 @@ const FixRoleButton: React.FC = () => {
       if (rpcError) {
         console.error("Erreur RPC:", rpcError);
         
-        // Méthode alternative: upsert direct dans la table user_roles
+        // Alternative: use direct upsert to user_roles table
         const { error: upsertError } = await supabase
           .from("user_roles")
           .upsert({ 
@@ -36,44 +36,46 @@ const FixRoleButton: React.FC = () => {
           }, { onConflict: "user_id" });
           
         if (upsertError) {
-          console.error("Erreur d'upsert:", upsertError);
-          throw new Error(upsertError.message);
+          throw upsertError;
         }
       }
       
-      // Attendre un court instant pour que les changements se propagent
-      setTimeout(async () => {
-        await refreshRole();
-        toast({
-          title: "Succès",
-          description: "Vos droits d'accès ont été réparés. Vous êtes maintenant Super Admin.",
-        });
-        setIsLoading(false);
-        
-        // Recharger la page pour appliquer les nouvelles permissions
-        window.location.reload();
-      }, 1000);
+      // Refresh the role
+      await refreshRole();
+      
+      toast({
+        title: "Succès",
+        description: "Vos autorisations ont été réparées avec succès.",
+      });
+      
+      // Reload the page to apply new permissions
+      window.location.reload();
+      
     } catch (error: any) {
-      console.error("Erreur lors de la réparation du rôle:", error);
+      console.error("Erreur de réparation des autorisations:", error);
       toast({
         title: "Erreur",
-        description: "Impossible de réparer les droits: " + error.message,
+        description: `Impossible de réparer les autorisations : ${error.message}`,
         variant: "destructive",
       });
-      setIsLoading(false);
+    } finally {
+      setIsRepairing(false);
     }
   };
 
   return (
-    <Button 
-      onClick={handleFixRole}
-      disabled={isLoading}
-      className="flex items-center justify-center"
+    <Button
+      variant="destructive"
+      onClick={handleRepairPermissions}
+      disabled={isRepairing}
+      className="flex items-center"
     >
-      {isLoading ? (
+      {isRepairing ? (
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-      ) : null}
-      Réparer mes droits d'accès
+      ) : (
+        <Shield className="h-4 w-4 mr-2" />
+      )}
+      Réparer les autorisations
     </Button>
   );
 };

@@ -1,33 +1,36 @@
 
 import React from "react";
+import { useAuth } from "@/providers/AuthProvider";
+import { useUserRole } from "@/hooks/useUserRole";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import FixRoleButton from "@/components/admin/users/FixRoleButton"; // Fixed import syntax
-import { useAuth } from "@/providers/AuthProvider";
+// Corrigons l'importation problématique
+import FixRoleButton from "@/components/admin/users/FixRoleButton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle } from "lucide-react";
+import { FileText, Wrench } from "lucide-react";
 
 const VisitorHome = () => {
   const { user } = useAuth();
-  const isFirstUser = user?.created_at && Date.now() - new Date(user.created_at).getTime() < 3600000; // 1 heure
-
+  const { role } = useUserRole();
+  const isSpecialUser = user?.email === "konointer@gmail.com";
+  
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Bienvenue sur PDF Magic</h1>
-        <p className="text-gray-600">
-          Découvrez nos outils pour manipuler vos fichiers PDF en toute simplicité.
+    <div className="space-y-8">
+      <div className="flex flex-col space-y-2">
+        <h1 className="text-3xl font-bold">Bonjour, bienvenue !</h1>
+        <p className="text-muted-foreground">
+          Votre compte dispose actuellement d'un accès visiteur. Découvrez nos outils de base ci-dessous.
         </p>
       </div>
-
-      {isFirstUser && (
-        <Alert variant="default" className="bg-amber-50 border-amber-200">
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
-          <AlertTitle className="text-amber-800">Problème d'accès administrateur ?</AlertTitle>
-          <AlertDescription className="text-amber-700">
-            Si vous êtes le premier utilisateur et que vous n'avez pas accès aux fonctionnalités d'administration, 
-            cliquez sur le bouton ci-dessous pour réparer vos droits d'accès.
-            <div className="mt-2">
+      
+      {isSpecialUser && role !== "super_admin" && (
+        <Alert variant="warning">
+          <AlertTitle>Compte administrateur détecté</AlertTitle>
+          <AlertDescription className="flex flex-col gap-4">
+            <p>
+              Votre compte devrait avoir des privilèges administrateur, mais il semble que votre rôle ne soit pas correctement configuré.
+            </p>
+            <div className="flex gap-2">
               <FixRoleButton />
             </div>
           </AlertDescription>
