@@ -1,134 +1,129 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/providers/AuthProvider";
-import { useUserRole } from "@/hooks/useUserRole";
-import { LogOut, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/integrations/supabase/client";
+import { LogOut, RefreshCw, AlertCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
-import FixRoleButton from "@/components/admin/users/FixRoleButton";
+import { supabase } from "@/integrations/supabase/client";
 
-const SidebarFooter = () => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
+export const SidebarFooter = () => {
+  const { user, signOut } = useAuth();
   const { role, refreshRole } = useUserRole();
+  const navigate = useNavigate();
   const { toast } = useToast();
-  const [isKnownAdmin, setIsKnownAdmin] = useState(false);
-
-  // Vérifier si l'utilisateur est konointer@gmail.com
+  const [isFixingRole, setIsFixingRole] = useState(false);
+  const isSpecialAdmin = user?.email === "konointer@gmail.com";
+  
+  // Pour les utilisateurs spéciaux, vérifier et réparer automatiquement le rôle
   useEffect(() => {
-    if (user?.email === "konointer@gmail.com") {
-      setIsKnownAdmin(true);
-      // Forcer la mise à jour du rôle au chargement pour l'utilisateur spécial
-      const forceUpdateSpecialUserRole = async () => {
-        try {
-          console.log("Mise à jour automatique du rôle pour konointer@gmail.com");
-          
-          // Utiliser la fonction RPC compatible avec les types TypeScript
-          const { error: rpcError } = await supabase.rpc(
-            'force_set_super_admin_role',
-            { target_user_id: user.id }
-          );
-          
-          if (rpcError) {
-            console.error("Erreur lors de la mise à jour automatique du rôle par RPC:", rpcError);
-            
-            // Si échec, essayer la méthode directe
-            const { error: directError } = await supabase
-              .from("user_roles")
-              .upsert({
-                user_id: user.id,
-                role: "super_admin"
-              }, { onConflict: "user_id" });
-            
-            if (directError) {
-              console.error("Erreur lors de la mise à jour directe du rôle:", directError);
-            }
-          }
-          
-          // Actualiser le rôle dans l'interface
-          await refreshRole();
-          
-        } catch (error) {
-          console.error("Erreur lors de la mise à jour automatique du rôle:", error);
-        }
-      };
-      
-      // Exécuter la mise à jour automatique
-      forceUpdateSpecialUserRole();
-    } else {
-      setIsKnownAdmin(false);
+    if (isSpecialAdmin && role !== "super_admin") {
+      fixRoleAutomatically();
     }
-  }, [user, refreshRole]);
-
-  const handleLogout = async () => {
+  }, [role, isSpecialAdmin]);
+  
+  const fixRoleAutomatically = async () => {
+    if (!user || isFixingRole) return;
+    
+    setIsFixingRole(true);
     try {
-      await supabase.auth.signOut();
-      toast({
-        title: "Déconnexion réussie",
-        description: "Vous avez été déconnecté avec succès",
-      });
-      navigate("/auth");
-    } catch (error: any) {
-      toast({
-        title: "Erreur de déconnexion",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Essayez d'abord en appelant la fonction RPC
+      const { error: rpcError } = await supabase.rpc(
+        'force_set_super_admin_role',
+        { target_user_id: user.id }
+      );
+      
+      if (rpcError) {
+        console.error("Erreur lors de la réparation automatique du rôle:", rpcError);
+        
+        // Méthode alternative: upsert direct dans la table user_roles
+        const { error: upsertError } = await supabase
+          .from("user_roles")
+          .upsert({ 
+            user_id: user.id,
+            role: "super_admin" 
+          }, { onConflict: "user_id" });
+          
+        if (upsertError) {
+          console.error("Erreur d'upsert:", upsertError);
+        }
+      }
+      
+      // Actualiser le rôle
+      await refreshRole();
+      
+      if (role !== "super_admin") {
+        // Afficher un toast pour informer l'utilisateur qu'il peut cliquer sur le bouton de réparation
+        toast({
+          title: "Attention",
+          description: "Votre rôle Super Admin n'a pas été appliqué correctement. Utilisez le bouton 'Réparer les autorisations' dans le tableau de bord.",
+          variant: "warning",
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la réparation automatique du rôle:", error);
+    } finally {
+      setIsFixingRole(false);
     }
   };
 
-  const handleManualRefreshRole = async () => {
+  const handleRefreshRole = async () => {
     await refreshRole();
     toast({
       title: "Rôle actualisé",
-      description: "Votre rôle a été actualisé"
+      description: `Votre rôle actuel est: ${role || "Non défini"}`,
     });
   };
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
   return (
-    <div className="border-t border-border p-4">
+    <div className="py-4 border-t">
       {user && (
-        <div className="flex flex-col gap-2">
-          <div className="text-sm text-muted-foreground">
-            Connecté en tant que:
-          </div>
-          <div className="text-sm font-semibold truncate">
-            {user?.email}
-            {role && (
-              <div className="text-xs text-muted-foreground mt-1">
-                Rôle: {role}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex flex-col gap-2 mt-2">
-            {/* Afficher le bouton de réparation des droits uniquement pour konointer@gmail.com */}
-            {isKnownAdmin && role !== "super_admin" && (
-              <FixRoleButton />
-            )}
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full"
-              onClick={handleManualRefreshRole}
-            >
-              <RefreshCw className="w-4 h-4 mr-2" /> Actualiser le rôle
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-full"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4 mr-2" /> Déconnexion
-            </Button>
+        <div className="px-3 text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+          {user.email}
+          {role && (
+            <div className="flex items-center mt-1">
+              <span className="text-xs bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">
+                {role}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 ml-1"
+                onClick={handleRefreshRole}
+                title="Actualiser le rôle"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {isSpecialAdmin && role !== "super_admin" && (
+        <div className="px-3 mb-2">
+          <div className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded flex items-center">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Rôle admin non appliqué
           </div>
         </div>
       )}
+
+      <div className="px-3">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          onClick={handleSignOut}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Déconnexion
+        </Button>
+      </div>
     </div>
   );
 };

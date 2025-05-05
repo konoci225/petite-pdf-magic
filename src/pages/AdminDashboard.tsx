@@ -43,50 +43,46 @@ const AdminDashboard = () => {
     try {
       console.log("Vérification des tables requises...");
       
-      // Essayer de récupérer des données de test via la vue
-      const { error: viewError } = await supabase
-        .from('admin_dashboard_stats')
-        .select('*')
-        .maybeSingle();
+      // Tenter d'accéder à la vue admin_dashboard_stats
+      // Utiliser la méthode rpc pour accéder à la vue sans problèmes de typage
+      const { data, error } = await supabase
+        .rpc('get_admin_dashboard_stats');
         
-      if (!viewError) {
-        console.log("La vue admin est accessible");
-        return true;
-      }
-      
-      console.log("Vue non accessible, vérification des tables individuellement");
-      
-      // Vérifier l'existence de la table modules
-      const { error: modulesError } = await supabase
-        .from('modules')
-        .select('id')
-        .limit(1);
+      if (error) {
+        console.error("Erreur lors de la récupération des statistiques via RPC:", error);
+        
+        // Méthode alternative: vérifier l'existence de tables individuelles
+        const { error: modulesError } = await supabase
+          .from('modules')
+          .select('id')
+          .limit(1);
 
-      if (modulesError) {
-        console.error("Erreur lors de la vérification de la table modules:", modulesError);
-        return false;
-      }
+        if (modulesError) {
+          console.error("Erreur lors de la vérification de la table modules:", modulesError);
+          return false;
+        }
 
-      // Vérifier l'existence de la table user_roles
-      const { error: userRolesError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .limit(1);
+        // Vérifier l'existence de la table user_roles
+        const { error: userRolesError } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .limit(1);
 
-      if (userRolesError) {
-        console.error("Erreur lors de la vérification de la table user_roles:", userRolesError);
-        return false;
-      }
+        if (userRolesError) {
+          console.error("Erreur lors de la vérification de la table user_roles:", userRolesError);
+          return false;
+        }
 
-      // Vérifier l'existence de la table user_modules
-      const { error: userModulesError } = await supabase
-        .from('user_modules')
-        .select('user_id, module_id')
-        .limit(1);
+        // Vérifier l'existence de la table user_modules
+        const { error: userModulesError } = await supabase
+          .from('user_modules')
+          .select('user_id, module_id')
+          .limit(1);
 
-      if (userModulesError) {
-        console.error("Erreur lors de la vérification de la table user_modules:", userModulesError);
-        return false;
+        if (userModulesError) {
+          console.error("Erreur lors de la vérification de la table user_modules:", userModulesError);
+          return false;
+        }
       }
       
       console.log("Toutes les tables requises existent et sont accessibles.");

@@ -195,7 +195,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_dashboard_stats: {
+        Row: {
+          active_modules: number | null
+          active_subscriptions: number | null
+          premium_modules: number | null
+          total_users: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       force_set_super_admin_role: {

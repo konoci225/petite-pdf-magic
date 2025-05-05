@@ -15,6 +15,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
+interface DashboardStats {
+  total_users: number;
+  active_modules: number;
+  premium_modules: number;
+  active_subscriptions: number;
+}
+
 const ReportsPage = () => {
   const { role, isLoading: roleLoading } = useUserRole();
   const { toast } = useToast();
@@ -45,44 +52,41 @@ const ReportsPage = () => {
     setError(null);
     
     try {
-      // Tenter de récupérer les statistiques via la vue admin_dashboard_stats
-      const { data: dashStats, error: dashError } = await supabase
-        .from('admin_dashboard_stats')
-        .select('*')
-        .single();
+      // Appeler la fonction Edge pour récupérer les statistiques du tableau de bord
+      const { data, error } = await supabase.functions.invoke('get_admin_dashboard_stats');
       
-      if (dashError) {
-        console.error("Erreur lors de la récupération des statistiques via vue:", dashError);
-        
+      if (error) {
+        console.error("Erreur lors de l'appel à la fonction Edge:", error);
+        throw new Error(error.message);
+      }
+      
+      if (data) {
+        setStats({
+          totalUsers: data.total_users || 0,
+          totalFiles: 0, // Ces données ne sont pas encore disponibles
+          activeSubscribers: data.active_subscriptions || 0,
+          newUserGrowth: data.total_users ? Math.floor(Math.random() * 30) : 0,
+          fileGrowth: 0,
+          subscriberGrowth: data.active_subscriptions ? Math.floor(Math.random() * 40) : 0
+        });
+      } else {
         // Méthode alternative: récupérer les données directement des tables
-        const [usersResult, filesResult, subscribersResult] = await Promise.all([
+        const [usersResult, subscribersResult] = await Promise.all([
           supabase.from('user_roles').select('*', { count: 'exact' }),
-          supabase.from('files').select('*', { count: 'exact' }),
           supabase.from('subscriptions').select('*').eq('status', 'active')
         ]);
         
         if (usersResult.error) throw usersResult.error;
-        if (filesResult.error) throw filesResult.error;
         if (subscribersResult.error) throw subscribersResult.error;
         
         // Calculer les statistiques basées sur les données réelles
         setStats({
           totalUsers: usersResult.count || 0,
-          totalFiles: filesResult.count || 0,
+          totalFiles: 0,
           activeSubscribers: subscribersResult.data?.length || 0,
           newUserGrowth: usersResult.count ? Math.floor(Math.random() * 30) : 0,
-          fileGrowth: filesResult.count ? Math.floor(Math.random() * 20) : 0,
+          fileGrowth: 0,
           subscriberGrowth: subscribersResult.data?.length ? Math.floor(Math.random() * 40) : 0
-        });
-      } else {
-        // Utiliser les données de la vue
-        setStats({
-          totalUsers: dashStats.total_users || 0,
-          totalFiles: dashStats.total_files || 0, 
-          activeSubscribers: dashStats.active_subscriptions || 0,
-          newUserGrowth: dashStats.total_users ? Math.floor(Math.random() * 30) : 0,
-          fileGrowth: dashStats.total_files ? Math.floor(Math.random() * 20) : 0,
-          subscriberGrowth: dashStats.active_subscriptions ? Math.floor(Math.random() * 40) : 0
         });
       }
     } catch (error: any) {

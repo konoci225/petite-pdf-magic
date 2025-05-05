@@ -1,5 +1,4 @@
-
-import React from "react";
+import React, { useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -48,6 +47,15 @@ const SettingsPage = () => {
   const { language, changeLanguage } = useLanguage();
   
   const isSuperAdmin = role === "super_admin";
+  
+  // Synchroniser les paramètres de thème et de langue avec les hooks correspondants
+  useEffect(() => {
+    // Mettre à jour les paramètres avec les valeurs actuelles des hooks
+    updateSettings({
+      theme: theme as "light" | "dark" | "system",
+      language: language
+    }, "synchronisation");
+  }, []);
   
   const handleNotificationChange = (key: keyof typeof settings) => {
     updateSettings({ [key]: !settings[key] }, "de notification");
@@ -289,11 +297,13 @@ const SettingsPage = () => {
                 
                 <Separator />
                 
-                <div className="space-y-2">
-                  <Label htmlFor="sessionTimeout">Expiration de session</Label>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Définissez la durée d'inactivité avant d'être déconnecté automatiquement.
-                  </p>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Expiration de session</Label>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Définissez la durée d'inactivité avant d'être déconnecté automatiquement.
+                    </p>
+                  </div>
                   <Select 
                     value={settings.sessionTimeout} 
                     onValueChange={(value) => updateSettings({ sessionTimeout: value })}

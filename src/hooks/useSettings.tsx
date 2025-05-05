@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/hooks/useTheme";
+import { useLanguage, Language } from "@/hooks/useLanguage";
 
 export interface UserSettings {
   theme: "light" | "dark" | "system";
@@ -31,6 +33,9 @@ const defaultSettings: UserSettings = {
 export const useSettings = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { theme, changeTheme } = useTheme();
+  const { language, changeLanguage } = useLanguage();
+  
   const [settings, setSettings] = useState<UserSettings>(() => {
     // Charger les paramètres depuis localStorage si disponibles
     if (user) {
@@ -63,20 +68,15 @@ export const useSettings = () => {
         const parsedSettings = JSON.parse(savedSettings);
         setSettings(parsedSettings);
         
-        // Appliquer le thème immédiatement
-        const root = window.document.documentElement;
-        root.classList.remove("light", "dark");
-        if (parsedSettings.theme === "system") {
-          const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light";
-          root.classList.add(systemTheme);
-        } else {
-          root.classList.add(parsedSettings.theme);
+        // Appliquer le thème immédiatement via le hook useTheme
+        if (parsedSettings.theme) {
+          changeTheme(parsedSettings.theme);
         }
         
-        // Appliquer la langue immédiatement
-        document.documentElement.lang = parsedSettings.language || "fr";
+        // Appliquer la langue immédiatement via le hook useLanguage
+        if (parsedSettings.language) {
+          changeLanguage(parsedSettings.language as Language);
+        }
       }
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -96,31 +96,24 @@ export const useSettings = () => {
       localStorage.setItem(`user_settings_${user.id}`, JSON.stringify(updatedSettings));
       setSettings(updatedSettings);
       
-      // Appliquer le thème immédiatement si modifié
+      // Appliquer le thème immédiatement via le hook useTheme
       if (newSettings.theme) {
-        const root = window.document.documentElement;
-        root.classList.remove("light", "dark");
-        if (newSettings.theme === "system") {
-          const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-            ? "dark"
-            : "light";
-          root.classList.add(systemTheme);
-        } else {
-          root.classList.add(newSettings.theme);
-        }
+        changeTheme(newSettings.theme);
       }
       
-      // Appliquer la langue immédiatement si modifiée
+      // Appliquer la langue immédiatement via le hook useLanguage
       if (newSettings.language) {
-        document.documentElement.lang = newSettings.language;
+        changeLanguage(newSettings.language as Language);
       }
       
-      toast({
-        title: "Paramètres sauvegardés",
-        description: category 
-          ? `Les paramètres ${category} ont été mis à jour avec succès.`
-          : "Vos paramètres ont été mis à jour avec succès.",
-      });
+      if (category && category !== "synchronisation") {
+        toast({
+          title: "Paramètres sauvegardés",
+          description: category 
+            ? `Les paramètres ${category} ont été mis à jour avec succès.`
+            : "Vos paramètres ont été mis à jour avec succès.",
+        });
+      }
       
       // Pour un usage réel, sauvegarde dans la base de données
       // try {

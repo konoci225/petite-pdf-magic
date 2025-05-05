@@ -5,21 +5,32 @@ import { useToast } from "@/hooks/use-toast";
 export type Language = "fr" | "en" | "es" | "de";
 
 export const useLanguage = () => {
-  const [language, setLanguage] = useState<Language>(() => {
+  const [language, setLanguageState] = useState<Language>(() => {
     // Récupérer la langue depuis localStorage ou utiliser "fr" par défaut
-    return (localStorage.getItem("language") as Language) || "fr";
+    if (typeof window !== "undefined") {
+      const storedLanguage = localStorage.getItem("language") as Language;
+      return storedLanguage || "fr";
+    }
+    return "fr";
   });
+  
   const { toast } = useToast();
 
-  // Appliquer la langue à l'élément HTML
+  // Fonction pour appliquer la langue
+  const applyLanguage = (newLanguage: Language) => {
+    document.documentElement.lang = newLanguage;
+    localStorage.setItem("language", newLanguage);
+  };
+
+  // Appliquer la langue à l'élément HTML quand elle change
   useEffect(() => {
-    document.documentElement.lang = language;
-    localStorage.setItem("language", language);
+    applyLanguage(language);
   }, [language]);
 
   // Fonction pour changer de langue
   const changeLanguage = (newLanguage: Language) => {
-    setLanguage(newLanguage);
+    setLanguageState(newLanguage);
+    
     toast({
       title: "Langue mise à jour",
       description: `La langue a été changée en ${
