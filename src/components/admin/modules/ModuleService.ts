@@ -1,4 +1,5 @@
 
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -8,8 +9,8 @@ export interface Module {
   description: string | null;
   is_active: boolean;
   is_premium: boolean;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ModuleFormData {
@@ -19,24 +20,54 @@ export interface ModuleFormData {
   is_premium: boolean;
 }
 
+const DEFAULT_MODULES = [
+  {
+    module_name: "PDF Fusion",
+    description: "Combinez plusieurs fichiers PDF en un seul document",
+    is_active: true,
+    is_premium: false
+  },
+  {
+    module_name: "PDF Division",
+    description: "Séparez un PDF en plusieurs documents distincts",
+    is_active: true,
+    is_premium: false
+  },
+  {
+    module_name: "Compression PDF",
+    description: "Réduisez la taille de vos fichiers PDF",
+    is_active: true,
+    is_premium: false
+  },
+  {
+    module_name: "Conversion PDF vers Word",
+    description: "Convertissez des PDF en documents Word éditables",
+    is_active: true,
+    is_premium: true
+  }
+];
+
 export const useModuleService = () => {
   const { toast } = useToast();
-
+  
+  // Récupérer tous les modules
   const fetchModules = async (): Promise<Module[]> => {
     try {
-      const { data, error } = await supabase
+      console.log("Récupération de la liste des modules...");
+      
+      const { data: modules, error } = await supabase
         .from("modules")
         .select("*")
         .order("created_at", { ascending: false });
-
+      
       if (error) {
+        console.error("Erreur lors de la récupération des modules:", error);
         throw error;
       }
       
-      console.log("Modules récupérés:", data);
-      return data || [];
+      return modules || [];
     } catch (error: any) {
-      console.error("Error fetching modules:", error);
+      console.error("Échec de la récupération des modules:", error);
       toast({
         title: "Erreur",
         description: "Impossible de charger les modules: " + error.message,
@@ -46,63 +77,144 @@ export const useModuleService = () => {
     }
   };
 
-  const createDefaultModules = async () => {
+  // Créer ou mettre à jour un module
+  const saveModule = async (
+    formData: ModuleFormData,
+    moduleId: string | undefined
+  ): Promise<boolean> => {
     try {
-      console.log("Vérification si des modules existent déjà");
-      const { data: existingModules, error: checkError } = await supabase
-        .from("modules")
-        .select("id")
-        .limit(1);
+      console.log("Sauvegarde du module:", formData, "ID:", moduleId || "nouveau");
       
-      if (checkError) {
-        throw checkError;
+      if (moduleId) {
+        // Mise à jour d'un module existant
+        const { error } = await supabase
+          .from("modules")
+          .update({
+            module_name: formData.module_name,
+            description: formData.description,
+            is_active: formData.is_active,
+            is_premium: formData.is_premium,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", moduleId);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Succès",
+          description: "Module mis à jour avec succès",
+        });
+      } else {
+        // Création d'un nouveau module
+        const { error } = await supabase.from("modules").insert([
+          {
+            module_name: formData.module_name,
+            description: formData.description,
+            is_active: formData.is_active,
+            is_premium: formData.is_premium,
+          },
+        ]);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Succès",
+          description: "Nouveau module créé avec succès",
+        });
       }
       
-      // Only create default modules if none exist
-      if (existingModules && existingModules.length > 0) {
-        console.log("Des modules existent déjà, pas besoin d'en créer par défaut");
-        return true;
-      }
-      
-      console.log("Création des modules par défaut");
-      // Définition de tous les modules PDF
-      const defaultModules = [
-        {
-          module_name: "Module PDF Basic",
-          description: "Fonctionnalités de base pour la manipulation de fichiers PDF",
-          is_active: true,
-          is_premium: false,
-        },
-        {
-          module_name: "Module PDF Advanced",
-          description: "Fonctionnalités avancées pour la manipulation de fichiers PDF",
-          is_active: true,
-          is_premium: true,
-        },
-        {
-          module_name: "Module OCR",
-          description: "Reconnaissance optique de caractères pour les documents scannés",
-          is_active: false,
-          is_premium: true,
-        }
-      ];
-      
-      // Insertion des modules par défaut
-      const { error } = await supabase.from("modules").insert(defaultModules);
-      
-      if (error) {
-        console.error("Erreur lors de la création des modules par défaut:", error);
-        throw error;
-      }
-      
-      toast({
-        title: "Modules initiaux créés",
-        description: "Des modules de base ont été créés pour démarrer",
-      });
-
       return true;
     } catch (error: any) {
-      console.error("Error creating default modules:", error);
+      console.error("Erreur lors de la sauvegarde du module:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de sauvegarder le module: " + error.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Supprimer un module
+  const deleteModule = async (moduleId: string): Promise<boolean> => {
+    try {
+      console.log("Suppression du module:", moduleId);
+      
+      const { error } = await supabase
+        .from("modules")
+        .delete()
+        .eq("id", moduleId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Succès",
+        description: "Module supprimé avec succès",
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error("Erreur lors de la suppression du module:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de supprimer le module: " + error.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Activer/désactiver un module
+  const toggleModuleActive = async (module: Module): Promise<boolean> => {
+    try {
+      console.log("Changement de statut du module:", module.id, "à", !module.is_active);
+      
+      const { error } = await supabase
+        .from("modules")
+        .update({ 
+          is_active: !module.is_active,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", module.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Succès",
+        description: `Module ${!module.is_active ? "activé" : "désactivé"} avec succès`,
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error("Erreur lors du changement de statut du module:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le statut du module: " + error.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  // Créer des modules par défaut
+  const createDefaultModules = async (): Promise<boolean> => {
+    try {
+      console.log("Création des modules par défaut...");
+      
+      const { error } = await supabase
+        .from("modules")
+        .insert(DEFAULT_MODULES);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Succès",
+        description: "Modules par défaut créés avec succès",
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error("Erreur lors de la création des modules par défaut:", error);
       toast({
         title: "Erreur",
         description: "Impossible de créer les modules par défaut: " + error.message,
@@ -112,116 +224,11 @@ export const useModuleService = () => {
     }
   };
 
-  const saveModule = async (formData: ModuleFormData, moduleId?: string): Promise<boolean> => {
-    try {
-      if (moduleId) {
-        // Update existing module
-        const { error } = await supabase
-          .from("modules")
-          .update({
-            module_name: formData.module_name,
-            description: formData.description || null,
-            is_active: formData.is_active,
-            is_premium: formData.is_premium,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", moduleId);
-
-        if (error) throw error;
-        toast({
-          title: "Succès",
-          description: "Module mis à jour avec succès",
-        });
-      } else {
-        // Create new module
-        const { error } = await supabase.from("modules").insert({
-          module_name: formData.module_name,
-          description: formData.description || null,
-          is_active: formData.is_active,
-          is_premium: formData.is_premium,
-        });
-
-        if (error) throw error;
-        toast({
-          title: "Succès",
-          description: "Module créé avec succès",
-        });
-      }
-
-      return true;
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
-      console.error("Error saving module:", error);
-      return false;
-    }
-  };
-
-  const deleteModule = async (moduleId: string): Promise<boolean> => {
-    try {
-      // Suppression des relations user_modules d'abord
-      const { error: userModulesError } = await supabase
-        .from("user_modules")
-        .delete()
-        .eq("module_id", moduleId);
-
-      if (userModulesError) throw userModulesError;
-
-      // Puis suppression du module
-      const { error } = await supabase
-        .from("modules")
-        .delete()
-        .eq("id", moduleId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Succès",
-        description: "Module supprimé avec succès",
-      });
-      return true;
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message,
-        variant: "destructive",
-      });
-      console.error("Error deleting module:", error);
-      return false;
-    }
-  };
-
-  const toggleModuleActive = async (module: Module): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from("modules")
-        .update({
-          is_active: !module.is_active,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", module.id);
-
-      if (error) throw error;
-      return true;
-    } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: "Impossible de mettre à jour le statut du module",
-        variant: "destructive",
-      });
-      console.error("Error toggling module status:", error);
-      return false;
-    }
-  };
-
   return {
     fetchModules,
-    createDefaultModules,
     saveModule,
     deleteModule,
     toggleModuleActive,
+    createDefaultModules,
   };
 };

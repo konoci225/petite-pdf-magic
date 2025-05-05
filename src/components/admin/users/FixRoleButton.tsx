@@ -18,29 +18,25 @@ const FixRoleButton = () => {
     
     setIsRepairing(true);
     try {
-      // First try using the RPC function
-      const { error: rpcError } = await supabase.rpc(
-        'force_set_super_admin_role',
-        { target_user_id: user.id }
-      );
+      console.log("Tentative de réparation des permissions pour", user.email);
       
-      if (rpcError) {
-        console.error("Erreur RPC:", rpcError);
+      // Éviter d'utiliser la fonction RPC qui pose problème
+      // Utiliser directement l'upsert dans la table user_roles
+      const { error: upsertError } = await supabase
+        .from("user_roles")
+        .upsert({ 
+          user_id: user.id,
+          role: "super_admin" 
+        }, { onConflict: "user_id" });
         
-        // Alternative: use direct upsert to user_roles table
-        const { error: upsertError } = await supabase
-          .from("user_roles")
-          .upsert({ 
-            user_id: user.id,
-            role: "super_admin" 
-          }, { onConflict: "user_id" });
-          
-        if (upsertError) {
-          throw upsertError;
-        }
+      if (upsertError) {
+        console.error("Erreur lors de la mise à jour du rôle:", upsertError);
+        throw upsertError;
       }
       
-      // Refresh the role
+      console.log("Mise à jour du rôle réussie, actualisation...");
+      
+      // Actualiser le rôle
       await refreshRole();
       
       toast({
@@ -48,8 +44,10 @@ const FixRoleButton = () => {
         description: "Vos autorisations ont été réparées avec succès.",
       });
       
-      // Reload the page to apply new permissions
-      window.location.reload();
+      // Recharger la page pour appliquer les nouvelles permissions
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
       
     } catch (error: any) {
       console.error("Erreur de réparation des autorisations:", error);

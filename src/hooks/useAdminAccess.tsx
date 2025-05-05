@@ -20,33 +20,27 @@ export const useAdminAccess = () => {
     try {
       console.log("Vérification des tables requises...");
       
-      // Appel à la fonction Edge pour récupérer les statistiques du tableau de bord
-      const { data: response, error } = await supabase.functions.invoke('get_admin_dashboard_stats');
-      
-      if (error) {
-        console.error("Erreur lors de la récupération des statistiques:", error);
-        
-        // Méthode alternative: vérifier l'existence de tables individuelles
-        const { error: modulesError } = await supabase
-          .from('modules')
-          .select('id')
-          .limit(1);
+      // Vérifier directement l'existence de tables individuelles sans utiliser Edge Function
+      // qui pourrait causer des problèmes de permission
+      const { data: modulesData, error: modulesError } = await supabase
+        .from('modules')
+        .select('id')
+        .limit(1);
 
-        if (modulesError) {
-          console.error("Erreur lors de la vérification de la table modules:", modulesError);
-          return false;
-        }
+      if (modulesError) {
+        console.error("Erreur lors de la vérification de la table modules:", modulesError);
+        return false;
+      }
 
-        // Vérifier l'existence de la table user_roles
-        const { error: userRolesError } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .limit(1);
+      // Vérifier l'existence de la table user_roles
+      const { data: userRolesData, error: userRolesError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .limit(1);
 
-        if (userRolesError) {
-          console.error("Erreur lors de la vérification de la table user_roles:", userRolesError);
-          return false;
-        }
+      if (userRolesError) {
+        console.error("Erreur lors de la vérification de la table user_roles:", userRolesError);
+        return false;
       }
       
       console.log("Toutes les tables requises existent et sont accessibles.");
@@ -61,30 +55,27 @@ export const useAdminAccess = () => {
   const forceRefreshPermissions = async () => {
     setIsLoading(true);
     try {
-      // Actualiser la session pour obtenir les dernières autorisations
       console.log("Actualisation forcée des autorisations...");
       
       if (isSpecialAdmin) {
-        // Tentative d'attribution directe du rôle super_admin
-        const { error: rpcError } = await supabase.rpc(
-          'force_set_super_admin_role',
-          { target_user_id: user?.id }
-        );
-        
-        if (rpcError) {
-          console.error("Erreur lors de l'attribution forcée du rôle:", rpcError);
-          
-          // Tentative alternative
-          const { error: upsertError } = await supabase
-            .from("user_roles")
-            .upsert({ 
-              user_id: user?.id,
-              role: "super_admin" 
-            }, { onConflict: "user_id" });
+        // Application directe de la mise à jour du rôle dans la base de données
+        // sans passer par RPC qui peut causer des problèmes de permissions
+        const { error: upsertError } = await supabase
+          .from("user_roles")
+          .upsert({ 
+            user_id: user?.id,
+            role: "super_admin" 
+          }, { onConflict: "user_id" });
             
-          if (upsertError) {
-            console.error("Erreur lors de l'upsert direct:", upsertError);
-          }
+        if (upsertError) {
+          console.error("Erreur lors de l'upsert direct:", upsertError);
+          toast({
+            title: "Erreur",
+            description: "Impossible de mettre à jour votre rôle: " + upsertError.message,
+            variant: "destructive",
+          });
+        } else {
+          console.log("Mise à jour du rôle réussie via upsert direct");
         }
       }
       
@@ -103,8 +94,13 @@ export const useAdminAccess = () => {
       }
       
       setRetryCount(prev => prev + 1);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de l'actualisation:", error);
+      toast({
+        title: "Erreur",
+        description: "Problème lors de l'actualisation des permissions: " + error.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -112,16 +108,27 @@ export const useAdminAccess = () => {
 
   useEffect(() => {
     const checkAccess = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         console.log("Vérification de l'accès aux tables de la base de données...");
+        
         // Vérifier si les tables requises existent
         const accessible = await ensureTablesExist();
         setTablesAccessible(accessible);
         
-        setTimeout(() => {
+        // Si c'est l'utilisateur spécial mais que les tables ne sont pas accessibles,
+        // essayer de réparer automatiquement les permissions
+        if (isSpecialAdmin && !accessible && retryCount < 1) {
+          console.log("Tentative automatique de réparation des permissions...");
+          await forceRefreshPermissions();
+        } else {
           setIsLoading(false);
-        }, 500);
+        }
       } catch (error: any) {
         console.error("Error checking admin access:", error);
         toast({
@@ -133,10 +140,8 @@ export const useAdminAccess = () => {
       }
     };
     
-    if (user) {
-      checkAccess();
-    }
-  }, [user, toast, ensureTablesExist]);
+    checkAccess();
+  }, [user, isSpecialAdmin, retryCount, ensureTablesExist, refreshRole, toast]);
 
   return {
     isLoading,
