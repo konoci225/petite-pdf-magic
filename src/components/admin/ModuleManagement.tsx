@@ -46,7 +46,7 @@ export const ModuleManagement = () => {
       setError("Impossible de charger les modules: " + err.message);
       toast({
         title: "Erreur",
-        description: "Impossible de charger les modules",
+        description: "Impossible de charger les modules: " + err.message,
         variant: "destructive",
       });
     } finally {
