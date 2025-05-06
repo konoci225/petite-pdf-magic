@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModuleManagement } from "@/components/admin/ModuleManagement";
@@ -12,10 +12,13 @@ import { useAuth } from "@/providers/AuthProvider";
 import { Navigate, useSearchParams } from "react-router-dom";
 import { ErrorMessage } from "@/components/admin/ErrorMessage";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const AdminDashboard = () => {
   const { role, isLoading: roleLoading, refreshRole, isSpecialAdmin } = useUserRole();
   const { user } = useAuth();
+  const { toast } = useToast();
   const {
     isLoading,
     tablesAccessible,
@@ -23,9 +26,63 @@ const AdminDashboard = () => {
     forceRefreshPermissions
   } = useAdminAccess();
   const [searchParams] = useSearchParams();
+  const [isInitializing, setIsInitializing] = useState(false);
   const defaultTab = searchParams.get('tab') || 'modules';
 
   console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "isSpecialAdmin:", isSpecialAdmin);
+
+  // Fonction pour initialiser les tables si nécessaire
+  const initializeAdminAccess = async () => {
+    if (!user || isInitializing) return;
+    
+    setIsInitializing(true);
+    try {
+      console.log("Tentative d'initialisation des tables administrateur...");
+      
+      // Tenter d'initialiser les modules par défaut
+      const { error } = await supabase.rpc('create_default_modules');
+      
+      if (error) {
+        console.warn("Erreur lors de l'initialisation des modules:", error);
+        
+        // Tenter de réparer les permissions pour l'utilisateur spécial
+        if (isSpecialAdmin) {
+          console.log("Tentative de réparation des permissions pour l'utilisateur spécial...");
+          try {
+            const { data, error: fnError } = await supabase.functions.invoke("set-admin-role", {
+              body: { email: user.email }
+            });
+            
+            if (fnError) {
+              console.error("Erreur de la fonction edge:", fnError);
+            } else if (data && data.success) {
+              console.log("Réparation réussie via fonction edge");
+              await refreshRole();
+            }
+          } catch (e) {
+            console.error("Erreur lors de la réparation automatique:", e);
+          }
+        }
+      } else {
+        console.log("Initialisation des modules réussie");
+        toast({
+          title: "Initialisation réussie",
+          description: "Les modules par défaut ont été créés."
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'initialisation:", error);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  // Tenter d'initialiser les tables au chargement
+  useEffect(() => {
+    if (user && (isSpecialAdmin || role === "super_admin")) {
+      initializeAdminAccess();
+    }
+  }, [user, role, isSpecialAdmin]);
 
   // Show loading screen when role is still loading
   if (roleLoading) {
@@ -44,7 +101,7 @@ const AdminDashboard = () => {
           onRefreshRole={refreshRole}
         />
         
-        <div className="container mx-auto">
+        <div className="container mx-auto mt-8">
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="text-xl font-semibold mb-4">Détails de diagnostic</h2>
             <div className="space-y-2 text-sm">

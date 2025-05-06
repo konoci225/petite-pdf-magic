@@ -20,28 +20,35 @@ const FixRoleButton = () => {
     try {
       console.log("Tentative de réparation des permissions pour", user.email);
       
-      // Utilisation directe d'une requête SQL plus simple via upsert
-      const { error: upsertError } = await supabase
-        .from("user_roles")
-        .upsert({ 
-          user_id: user.id,
-          role: "super_admin" 
-        }, { onConflict: "user_id" });
-        
-      if (upsertError) {
-        console.error("Erreur lors de la mise à jour du rôle:", upsertError);
-        
-        // Tentative alternative avec une méthode différente si l'upsert échoue
-        const { error: insertError } = await supabase
+      // Essayez d'abord avec la fonction Edge
+      const { data, error } = await supabase.functions.invoke("set-admin-role", {
+        body: { email: user.email }
+      });
+      
+      if (error) {
+        console.error("Erreur avec la fonction edge:", error);
+        throw error;
+      }
+      
+      console.log("Réponse de la fonction edge:", data);
+      
+      if (!data.success) {
+        throw new Error(data.error || "Échec de la réparation des autorisations");
+      }
+      
+      // Méthode alternative avec upsert direct
+      if (!data.success) {
+        console.log("Tentative avec méthode alternative...");
+        const { error: upsertError } = await supabase
           .from("user_roles")
-          .insert({ 
+          .upsert({ 
             user_id: user.id,
             role: "super_admin" 
-          });
+          }, { onConflict: "user_id" });
           
-        if (insertError) {
-          console.error("Erreur lors de l'insertion du rôle:", insertError);
-          throw new Error("Impossible de mettre à jour les permissions");
+        if (upsertError) {
+          console.error("Erreur lors de la mise à jour du rôle:", upsertError);
+          throw upsertError;
         }
       }
       
@@ -52,7 +59,7 @@ const FixRoleButton = () => {
       
       toast({
         title: "Succès",
-        description: "Vos autorisations ont été réparées avec succès.",
+        description: "Vos autorisations ont été réparées avec succès. La page va se recharger.",
       });
       
       // Recharger la page pour appliquer les nouvelles permissions
@@ -60,7 +67,7 @@ const FixRoleButton = () => {
         window.location.reload();
       }, 1500);
       
-    } catch (error: any) {
+    } catch (error) {
       console.error("Erreur de réparation des autorisations:", error);
       toast({
         title: "Erreur",
@@ -72,48 +79,10 @@ const FixRoleButton = () => {
     }
   };
 
-  // Pour les utilisateurs spéciaux, forcer l'application du rôle super_admin
-  const forceApplySuperAdminRole = async () => {
-    if (!user) return;
-    
-    setIsRepairing(true);
-    try {
-      // Contourner complètement RLS en utilisant une approche directe
-      await refreshRole();
-      
-      toast({
-        title: "Succès",
-        description: "Autorisations super admin appliquées."
-      });
-      
-      // Recharger la page
-      setTimeout(() => {
-        window.location.href = "/admin";
-      }, 1500);
-    } catch (error: any) {
-      console.error("Erreur lors de l'application forcée du rôle:", error);
-      toast({
-        title: "Erreur",
-        description: `Impossible d'appliquer le rôle super admin: ${error.message}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsRepairing(false);
-    }
-  };
-
-  const handleClick = () => {
-    if (isSpecialAdmin) {
-      forceApplySuperAdminRole();
-    } else {
-      handleRepairPermissions();
-    }
-  };
-
   return (
     <Button
       variant="destructive"
-      onClick={handleClick}
+      onClick={handleRepairPermissions}
       disabled={isRepairing}
       className="flex items-center"
     >

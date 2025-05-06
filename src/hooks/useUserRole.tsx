@@ -33,19 +33,31 @@ export const useUserRole = () => {
     setRole('super_admin' as AppRole);
     
     try {
-      // Mettre à jour le rôle dans la base de données
-      const { error } = await supabase
+      // Tenter d'utiliser la fonction Edge pour définir le rôle
+      const { data, error } = await supabase.functions.invoke("set-admin-role", {
+        body: { email: user.email }
+      });
+      
+      if (error) {
+        console.warn("Erreur lors de l'appel à la fonction edge:", error);
+        // Continuer avec la méthode directe
+      } else if (data && data.success) {
+        console.log("Rôle super_admin appliqué avec succès via la fonction edge");
+        return;
+      }
+      
+      // Méthode de secours: upsert direct
+      const { error: upsertError } = await supabase
         .from("user_roles")
         .upsert({ 
           user_id: user.id,
           role: "super_admin" as AppRole
         }, { onConflict: "user_id" });
         
-      if (error) {
-        console.warn("Note: Mise à jour de la base de données non effectuée:", error);
-        // Ne pas bloquer l'utilisateur si l'upsert échoue
+      if (upsertError) {
+        console.warn("Erreur lors de l'upsert direct:", upsertError);
       } else {
-        console.log("Rôle super_admin appliqué avec succès dans la base de données");
+        console.log("Rôle super_admin appliqué avec succès via upsert direct");
       }
     } catch (error) {
       console.warn("Erreur silencieuse:", error);
@@ -75,6 +87,25 @@ export const useUserRole = () => {
       
       // Pour les autres utilisateurs, récupérer le rôle depuis la base de données
       console.log("Récupération du rôle depuis la base de données");
+      
+      // Essayer d'utiliser la fonction RPC
+      try {
+        const { data: roleData, error: rpcError } = await supabase.rpc(
+          'get_user_role',
+          { user_id: user.id }
+        );
+        
+        if (!rpcError && roleData) {
+          console.log("Rôle récupéré via RPC:", roleData);
+          setRole(roleData as AppRole);
+          setIsLoading(false);
+          return;
+        }
+      } catch (rpcErr) {
+        console.warn("Erreur RPC silencieuse:", rpcErr);
+      }
+      
+      // Méthode de secours: requête directe
       const { data: userRole, error } = await supabase
         .from('user_roles')
         .select('role')
@@ -85,7 +116,7 @@ export const useUserRole = () => {
         console.error("Erreur lors de la récupération du rôle:", error);
         setRole(null);
       } else {
-        console.log("Rôle récupéré:", userRole?.role);
+        console.log("Rôle récupéré via requête directe:", userRole?.role);
         setRole(userRole?.role || null);
       }
     } catch (error: any) {
@@ -106,6 +137,13 @@ export const useUserRole = () => {
   useEffect(() => {
     refreshRole();
   }, [user]);
+
+  // Pour les utilisateurs spéciaux, forcer l'application du rôle super_admin même si le rôle n'est pas correctement défini
+  useEffect(() => {
+    if (user && isSpecialAdmin(user.email) && role !== 'super_admin') {
+      applySpecialSuperAdminRole();
+    }
+  }, [user, role]);
 
   return { 
     role, 

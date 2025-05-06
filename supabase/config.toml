@@ -1,8 +1,11 @@
 
 project_id = "drjwwtbeqgugaqoembyy"
 
+[functions.admin-bypass]
+verify_jwt = true
+
 [functions.get_admin_dashboard_stats]
 verify_jwt = true
 
-[functions.admin-bypass]
+[functions.set-admin-role]
 verify_jwt = true
