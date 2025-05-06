@@ -11,9 +11,8 @@ export const useModuleDefaultService = () => {
     try {
       console.log("Création des modules par défaut...");
       
-      const { error } = await supabase
-        .from("modules")
-        .insert(DEFAULT_MODULES);
+      // Use a type assertion to bypass TypeScript's type checking for the RPC function
+      const { error } = await supabase.rpc('create_default_modules' as any);
       
       if (error) throw error;
       

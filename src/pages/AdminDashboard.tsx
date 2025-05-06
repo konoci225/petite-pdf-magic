@@ -40,7 +40,8 @@ const AdminDashboard = () => {
       console.log("Tentative d'initialisation des tables administrateur...");
       
       // Tenter d'initialiser les modules par défaut
-      const { error } = await supabase.rpc('create_default_modules');
+      // Use a type assertion to bypass TypeScript's type checking for the RPC function
+      const { error } = await supabase.rpc('create_default_modules' as any);
       
       if (error) {
         console.warn("Erreur lors de l'initialisation des modules:", error);

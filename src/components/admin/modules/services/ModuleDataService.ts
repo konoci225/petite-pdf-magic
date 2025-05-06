@@ -31,7 +31,11 @@ export const useModuleDataService = () => {
         // Contournement: essayer de créer directement les modules par défaut si aucun module n'existe
         if (error.message.includes("permission denied")) {
           console.log("Tentative de contournement des problèmes de permission...");
-          const { error: createError } = await supabase.rpc("create_default_modules");
+          
+          // Use a type assertion to bypass TypeScript's type checking for the RPC function
+          const { error: createError } = await supabase.rpc(
+            "create_default_modules" as any
+          );
           
           if (createError) {
             console.error("Échec du contournement:", createError);

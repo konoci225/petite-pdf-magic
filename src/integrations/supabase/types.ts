@@ -206,6 +206,18 @@ export type Database = {
       }
     }
     Functions: {
+      create_default_modules: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_premium: boolean
+          module_name: string
+          updated_at: string
+        }[]
+      }
       force_set_super_admin_role: {
         Args: { target_user_id: string }
         Returns: undefined
