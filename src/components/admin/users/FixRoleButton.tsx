@@ -95,19 +95,20 @@ const FixRoleButton = () => {
         }
       }
       
-      // Step 4: Try ensure_special_admin
+      // Step 4: Try direct call to the edge function for special admin handling
       if (!success && isSpecialAdmin) {
         try {
-          const { error: ensureError } = await supabase.rpc('ensure_special_admin');
+          // Instead of using rpc('ensure_special_admin'), use the edge function
+          const { error: edgeFunctionError } = await supabase.functions.invoke("set-admin-role", {
+            body: { forceRepair: true, email: user.email }
+          });
           
-          if (!ensureError) {
-            console.log("Successfully repaired via ensure_special_admin");
+          if (!edgeFunctionError) {
+            console.log("Successfully repaired via special admin edge function");
             success = true;
-          } else {
-            console.error("ensure_special_admin error:", ensureError);
           }
-        } catch (ensureErr) {
-          console.error("ensure_special_admin error (catch):", ensureErr);
+        } catch (specialErr) {
+          console.error("Special admin repair error:", specialErr);
         }
       }
       

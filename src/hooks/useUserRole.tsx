@@ -41,13 +41,22 @@ export const useUserRole = () => {
     try {
       console.log("Attempting to update role in database for special user");
       
-      // Try running the ensure_special_admin RPC function
+      // Try running the force_set_super_admin_role RPC function which is in our TypeScript types
       try {
-        await supabase.rpc('ensure_special_admin');
-        console.log("Successfully ran ensure_special_admin");
+        // Using the force_set_super_admin_role function instead of ensure_special_admin
+        const { data, error } = await supabase.rpc('force_set_super_admin_role', {
+          target_user_id: user.id
+        });
+        
+        if (error) {
+          console.error("Error with force_set_super_admin_role:", error);
+          return false;
+        }
+        
+        console.log("Successfully ran force_set_super_admin_role");
         return true;
       } catch (rpcErr) {
-        console.error("Error with ensure_special_admin:", rpcErr);
+        console.error("Error with force_set_super_admin_role:", rpcErr);
       }
       
       // Try upsert directly
