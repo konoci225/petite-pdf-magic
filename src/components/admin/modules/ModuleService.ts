@@ -2,9 +2,9 @@
 import { useModuleDataService } from "./services/ModuleDataService";
 import { useModuleStateService } from "./services/ModuleStateService";
 import { useModuleDefaultService } from "./services/ModuleDefaultService";
-import { Module, ModuleFormData } from "./ModuleTypes";
+import type { Module, ModuleFormData } from "./ModuleTypes";
 
-export { Module, ModuleFormData };
+export type { Module, ModuleFormData };
 
 export const useModuleService = () => {
   const dataService = useModuleDataService();

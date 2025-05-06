@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Module } from "./ModuleService";
+import type { Module } from "./ModuleTypes";
 
 interface ModuleDeleteDialogProps {
   selectedModule: Module | null;

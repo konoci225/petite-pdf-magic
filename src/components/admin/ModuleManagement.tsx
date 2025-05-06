@@ -7,7 +7,7 @@ import ModulesTable from "./modules/ModulesTable";
 import ModuleForm from "./modules/ModuleForm";
 import ModuleDeleteDialog from "./modules/ModuleDeleteDialog";
 import { useModuleService } from "./modules/ModuleService";
-import { Module, ModuleFormData } from "./modules/ModuleTypes";
+import type { Module, ModuleFormData } from "./modules/ModuleTypes";
 import { useToast } from "@/hooks/use-toast";
 
 export const ModuleManagement = () => {
