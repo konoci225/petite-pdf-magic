@@ -47,10 +47,11 @@ export const AdminDashboardHeader = () => {
         </div>
       </div>
       
-      <div className="flex justify-end">
-        {/* Bouton de réparation des autorisations */}
-        <FixRoleButton />
-      </div>
+      {isSpecialAdmin && (
+        <div className="flex justify-end">
+          <FixRoleButton />
+        </div>
+      )}
     </div>
   );
 };

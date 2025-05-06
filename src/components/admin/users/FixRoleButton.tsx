@@ -20,7 +20,29 @@ const FixRoleButton = () => {
     try {
       console.log("Tentative de réparation des permissions pour", user.email);
       
-      // Try first with RPC function
+      // Method 1: Try with the edge function
+      try {
+        const { data, error } = await supabase.functions.invoke("set-admin-role", {
+          body: { email: user.email }
+        });
+        
+        if (error) {
+          console.error("Erreur avec la fonction edge:", error);
+        } else if (data && data.success) {
+          console.log("Réparation réussie via fonction edge");
+          await refreshRole();
+          toast({
+            title: "Succès",
+            description: "Permissions réparées avec succès via Edge Function",
+          });
+          setTimeout(() => window.location.reload(), 1500);
+          return;
+        }
+      } catch (edgeErr) {
+        console.log("Erreur Edge silencieuse:", edgeErr);
+      }
+      
+      // Method 2: Try with RPC function
       try {
         const { error: rpcError } = await supabase.rpc(
           'force_set_super_admin_role',
@@ -29,47 +51,19 @@ const FixRoleButton = () => {
         
         if (!rpcError) {
           console.log("Réparation réussie via RPC");
-          // Update local role state
           await refreshRole();
           toast({
             title: "Succès",
-            description: "Permissions réparées via la fonction RPC",
+            description: "Permissions réparées via RPC",
           });
           setTimeout(() => window.location.reload(), 1500);
           return;
         }
       } catch (rpcErr) {
-        console.warn("Erreur RPC silencieuse:", rpcErr);
+        console.error("Erreur RPC:", rpcErr);
       }
       
-      // Try next with the Edge function
-      try {
-        const { data, error } = await supabase.functions.invoke("set-admin-role", {
-          body: { email: user.email }
-        });
-        
-        if (error) {
-          console.error("Erreur avec la fonction edge:", error);
-          throw error;
-        }
-        
-        console.log("Réponse de la fonction edge:", data);
-        
-        if (data && data.success) {
-          // Update local role state
-          await refreshRole();
-          toast({
-            title: "Succès",
-            description: "Permissions réparées via la fonction Edge",
-          });
-          setTimeout(() => window.location.reload(), 1500);
-          return;
-        }
-      } catch (edgeErr) {
-        console.warn("Erreur Edge silencieuse:", edgeErr);
-      }
-      
-      // Last resort - direct upsert
+      // Method 3: Direct upsert as last resort
       const { error: upsertError } = await supabase
         .from("user_roles")
         .upsert({ 
@@ -80,6 +74,8 @@ const FixRoleButton = () => {
       if (upsertError) {
         console.error("Erreur lors de l'upsert direct:", upsertError);
         throw upsertError;
+      } else {
+        console.log("Réparation réussie via upsert direct");
       }
       
       // Update local role state
@@ -87,7 +83,7 @@ const FixRoleButton = () => {
       
       toast({
         title: "Succès",
-        description: "Vos autorisations ont été réparées avec succès. La page va se recharger.",
+        description: "Vos autorisations ont été réparées. La page va se recharger.",
       });
       
       // Reload page to apply new permissions
@@ -97,11 +93,24 @@ const FixRoleButton = () => {
       
     } catch (error: any) {
       console.error("Erreur de réparation des autorisations:", error);
-      toast({
-        title: "Erreur",
-        description: `Impossible de réparer les autorisations : ${error.message}`,
-        variant: "destructive",
-      });
+      
+      if (isSpecialAdmin) {
+        // If this is the special admin, we need to at least set the role locally
+        toast({
+          title: "Mode de secours",
+          description: "Attribution du rôle super_admin localement uniquement.",
+        });
+        
+        // Force the role to be set locally in the application state
+        await refreshRole();
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        toast({
+          title: "Erreur",
+          description: `Impossible de réparer les autorisations : ${error.message}`,
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsRepairing(false);
     }

@@ -29,61 +29,32 @@ serve(async (req) => {
 
     console.log(`Attempting to set super_admin role for user with email: ${email}`)
     
-    // Get the user by email - fixed query syntax
-    const { data: users, error: userError } = await supabaseAdmin
-      .from('auth.users')
-      .select('id, email')
-      .eq('email', email)
-      .limit(1)
+    // Get the user by email through auth admin API
+    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
     
-    if (userError) {
-      console.error('Error fetching user:', userError)
-      throw new Error(`Error fetching user: ${userError.message}`)
+    if (authError) {
+      throw new Error(`Error fetching auth users: ${authError.message}`)
     }
     
-    if (!users || users.length === 0) {
-      // Try to get user directly from auth schema
-      const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
-      
-      if (authError) {
-        throw new Error(`Error fetching auth users: ${authError.message}`)
-      }
-      
-      const matchedUser = authUsers.users.find(u => u.email === email)
-      
-      if (!matchedUser) {
-        throw new Error(`No user found with email: ${email}`)
-      }
-      
-      const userId = matchedUser.id
-      
-      // Set super_admin role directly using the service role
-      const { error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .upsert(
-          { user_id: userId, role: 'super_admin' },
-          { onConflict: 'user_id' }
-        )
-      
-      if (roleError) {
-        console.error('Error setting role:', roleError)
-        throw new Error(`Error setting role: ${roleError.message}`)
-      }
-    } else {
-      const userId = users[0].id
-      
-      // Set super_admin role directly using the service role
-      const { error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .upsert(
-          { user_id: userId, role: 'super_admin' },
-          { onConflict: 'user_id' }
-        )
-      
-      if (roleError) {
-        console.error('Error setting role:', roleError)
-        throw new Error(`Error setting role: ${roleError.message}`)
-      }
+    const matchedUser = authUsers?.users?.find(u => u.email === email)
+    
+    if (!matchedUser) {
+      throw new Error(`No user found with email: ${email}`)
+    }
+    
+    const userId = matchedUser.id
+    
+    // Set super_admin role directly using the service role
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .upsert(
+        { user_id: userId, role: 'super_admin' },
+        { onConflict: 'user_id' }
+      )
+    
+    if (roleError) {
+      console.error('Error setting role:', roleError)
+      throw new Error(`Error setting role: ${roleError.message}`)
     }
     
     return new Response(
