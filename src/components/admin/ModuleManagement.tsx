@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import ModulesTable from "./modules/ModulesTable";
