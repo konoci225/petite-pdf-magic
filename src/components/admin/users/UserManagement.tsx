@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import UsersTable from "./UsersTable";
@@ -43,11 +43,18 @@ export const UserManagement = () => {
 
   const fetchUsers = async () => {
     try {
+      console.log("Récupération des utilisateurs...");
       const fetchedUsers = await userService.fetchUsers();
+      console.log("Utilisateurs récupérés:", fetchedUsers);
       setUsers(fetchedUsers);
     } catch (error: any) {
       console.error("Error in fetchUsers:", error);
       setError("Impossible de charger les utilisateurs: " + error.message);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les utilisateurs: " + error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -134,7 +141,10 @@ export const UserManagement = () => {
     <div className="bg-white shadow rounded-lg p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Gestion des utilisateurs</h2>
-        <Button variant="outline" onClick={fetchData}>Actualiser</Button>
+        <Button variant="outline" onClick={fetchData}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Actualiser
+        </Button>
       </div>
 
       {isLoading ? (

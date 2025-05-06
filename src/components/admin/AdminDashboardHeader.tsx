@@ -1,10 +1,11 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Settings } from "lucide-react";
+import { RefreshCw, Settings, ShieldAlert } from "lucide-react";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { Badge } from "@/components/ui/badge";
+import FixRoleButton from "@/components/admin/users/FixRoleButton";
 
 export const AdminDashboardHeader = () => {
   const { role, isSpecialAdmin } = useUserRole();
@@ -15,33 +16,40 @@ export const AdminDashboardHeader = () => {
   };
 
   return (
-    <div className="flex justify-between items-center mb-8">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <h1 className="text-3xl font-bold">Tableau de bord administrateur</h1>
-          {isSpecialAdmin && (
-            <Badge variant="outline" className="ml-2 bg-purple-50 text-purple-800 border-purple-200">
-              Administrateur Spécial
-            </Badge>
-          )}
-          {role === "super_admin" && (
-            <Badge variant="outline" className="ml-2 bg-green-50 text-green-800 border-green-200">
-              Super Admin
-            </Badge>
-          )}
+    <div className="flex flex-col gap-4 mb-8">
+      <div className="flex justify-between items-center">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <h1 className="text-3xl font-bold">Tableau de bord administrateur</h1>
+            {isSpecialAdmin && (
+              <Badge variant="outline" className="ml-2 bg-purple-50 text-purple-800 border-purple-200">
+                Administrateur Spécial
+              </Badge>
+            )}
+            {role === "super_admin" && (
+              <Badge variant="outline" className="ml-2 bg-green-50 text-green-800 border-green-200">
+                Super Admin
+              </Badge>
+            )}
+          </div>
+          <p className="text-gray-500">
+            Gérez les utilisateurs, les modules et les abonnements de votre application.
+          </p>
         </div>
-        <p className="text-gray-500">
-          Gérez les utilisateurs, les modules et les abonnements de votre application.
-        </p>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleRefresh} size="sm">
+            <RefreshCw className="mr-2 h-4 w-4" /> 
+            Actualiser {retryCount > 0 ? `(${retryCount})` : ""}
+          </Button>
+          <Button variant="outline" size="sm">
+            <Settings className="mr-2 h-4 w-4" /> Paramètres
+          </Button>
+        </div>
       </div>
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={handleRefresh} size="sm">
-          <RefreshCw className="mr-2 h-4 w-4" /> 
-          Actualiser {retryCount > 0 ? `(${retryCount})` : ""}
-        </Button>
-        <Button variant="outline" size="sm">
-          <Settings className="mr-2 h-4 w-4" /> Paramètres
-        </Button>
+      
+      <div className="flex justify-end">
+        {/* Bouton de réparation des autorisations */}
+        <FixRoleButton />
       </div>
     </div>
   );

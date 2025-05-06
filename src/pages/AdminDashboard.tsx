@@ -14,6 +14,7 @@ import { ErrorMessage } from "@/components/admin/ErrorMessage";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import FixRoleButton from "@/components/admin/users/FixRoleButton";
 
 const AdminDashboard = () => {
   const { role, isLoading: roleLoading, refreshRole, isSpecialAdmin } = useUserRole();
@@ -109,6 +110,10 @@ const AdminDashboard = () => {
               <p><strong>Email:</strong> {user?.email}</p>
               <p><strong>Rôle actuel:</strong> {role || 'Non défini'}</p>
               <p><strong>ID utilisateur:</strong> {user?.id}</p>
+            </div>
+            
+            <div className="mt-6">
+              <FixRoleButton />
             </div>
           </div>
         </div>

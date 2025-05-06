@@ -67,7 +67,7 @@ const FixRoleButton = () => {
         window.location.reload();
       }, 1500);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur de réparation des autorisations:", error);
       toast({
         title: "Erreur",
@@ -81,17 +81,17 @@ const FixRoleButton = () => {
 
   return (
     <Button
-      variant="destructive"
+      variant="outline"
       onClick={handleRepairPermissions}
       disabled={isRepairing}
-      className="flex items-center"
+      className="flex items-center hover:border-red-300 hover:bg-red-50"
     >
       {isRepairing ? (
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
       ) : (
-        <Shield className="h-4 w-4 mr-2" />
+        <Shield className="h-4 w-4 mr-2 text-red-600" />
       )}
-      Réparer les autorisations
+      Réparer les autorisations administrateur
     </Button>
   );
 };

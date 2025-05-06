@@ -36,6 +36,7 @@ export const ModuleManagement = () => {
       
       if (fetchedModules.length === 0) {
         // Create default modules only if no modules exist
+        console.log("Aucun module trouvé, création des modules par défaut...");
         await moduleService.createDefaultModules();
         const refreshedModules = await moduleService.fetchModules();
         setModules(refreshedModules);
@@ -131,10 +132,16 @@ export const ModuleManagement = () => {
     <div className="bg-white shadow rounded-lg p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">Gestion des modules</h2>
-        <Button onClick={handleOpenCreateDialog}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouveau module
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleOpenCreateDialog}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouveau module
+          </Button>
+          <Button variant="outline" onClick={fetchModules}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Actualiser
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
