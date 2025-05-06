@@ -21,40 +21,67 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
     
     // Get the request data
-    const { email } = await req.json()
+    const { email, userId } = await req.json()
     
-    if (!email) {
-      throw new Error('Email is required')
+    if (!email && !userId) {
+      throw new Error('Either email or userId is required')
     }
 
-    console.log(`Attempting to set super_admin role for user with email: ${email}`)
+    console.log(`Attempting to set super_admin role using ${email ? 'email: ' + email : 'userId: ' + userId}`)
     
-    // Get the user by email through auth admin API
-    const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+    let targetUserId = userId
     
-    if (authError) {
-      throw new Error(`Error fetching auth users: ${authError.message}`)
+    // If email is provided, find the user by email
+    if (email && !targetUserId) {
+      // Get the user by email through auth admin API
+      const { data: authUsers, error: authError } = await supabaseAdmin.auth.admin.listUsers()
+      
+      if (authError) {
+        throw new Error(`Error fetching auth users: ${authError.message}`)
+      }
+      
+      const matchedUser = authUsers?.users?.find(u => u.email === email)
+      
+      if (!matchedUser) {
+        throw new Error(`No user found with email: ${email}`)
+      }
+      
+      targetUserId = matchedUser.id
     }
     
-    const matchedUser = authUsers?.users?.find(u => u.email === email)
-    
-    if (!matchedUser) {
-      throw new Error(`No user found with email: ${email}`)
+    if (!targetUserId) {
+      throw new Error('Could not determine user ID')
     }
     
-    const userId = matchedUser.id
+    // Use the RPC function with SECURITY DEFINER to bypass RLS
+    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc(
+      'force_set_super_admin_role',
+      { target_user_id: targetUserId }
+    )
+      
+    if (rpcError) {
+      console.error('Error with RPC method:', rpcError)
+      
+      // Fallback to direct insert/update if RPC fails
+      const { error: roleError } = await supabaseAdmin
+        .from('user_roles')
+        .upsert(
+          { user_id: targetUserId, role: 'super_admin' },
+          { onConflict: 'user_id' }
+        )
+      
+      if (roleError) {
+        console.error('Error with direct upsert:', roleError)
+        throw new Error(`Error setting role: ${roleError.message}`)
+      }
+    }
     
-    // Set super_admin role directly using the service role
-    const { error: roleError } = await supabaseAdmin
-      .from('user_roles')
-      .upsert(
-        { user_id: userId, role: 'super_admin' },
-        { onConflict: 'user_id' }
-      )
-    
-    if (roleError) {
-      console.error('Error setting role:', roleError)
-      throw new Error(`Error setting role: ${roleError.message}`)
+    // Try to run the ensure_special_admin function for good measure
+    try {
+      await supabaseAdmin.rpc('ensure_special_admin')
+    } catch (error) {
+      console.log('Non-critical error running ensure_special_admin:', error)
+      // Non-critical error, continue
     }
     
     return new Response(
