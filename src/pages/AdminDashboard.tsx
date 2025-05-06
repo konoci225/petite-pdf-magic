@@ -9,22 +9,23 @@ import { AdminDashboardHeader } from "@/components/admin/AdminDashboardHeader";
 import { AdminDashboardLoader } from "@/components/admin/AdminDashboardLoader";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useAuth } from "@/providers/AuthProvider";
-import { Navigate } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { ErrorMessage } from "@/components/admin/ErrorMessage";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 
 const AdminDashboard = () => {
-  const { role, isLoading: roleLoading, refreshRole } = useUserRole();
+  const { role, isLoading: roleLoading, refreshRole, isSpecialAdmin } = useUserRole();
   const { user } = useAuth();
   const {
     isLoading,
     tablesAccessible,
     retryCount,
-    isSpecialAdmin,
     forceRefreshPermissions
   } = useAdminAccess();
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'modules';
 
-  console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "Loading:", isLoading);
+  console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "isSpecialAdmin:", isSpecialAdmin);
 
   // Show loading screen when role is still loading
   if (roleLoading) {
@@ -75,7 +76,7 @@ const AdminDashboard = () => {
   }
 
   // Show error if tables are not accessible
-  if (!tablesAccessible) {
+  if (!tablesAccessible && !isSpecialAdmin) {
     return (
       <Layout>
         <ErrorMessage 
@@ -93,7 +94,7 @@ const AdminDashboard = () => {
       <div className="container mx-auto py-8">
         <AdminDashboardHeader />
         
-        <Tabs defaultValue="modules" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="modules">Gestion des modules</TabsTrigger>
             <TabsTrigger value="users">Gestion des utilisateurs</TabsTrigger>

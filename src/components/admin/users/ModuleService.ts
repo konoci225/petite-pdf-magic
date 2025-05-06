@@ -1,7 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Module } from "./types";
+import { Module } from "../modules/ModuleTypes";
 
 export const useModuleService = () => {
   const { toast } = useToast();

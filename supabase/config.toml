@@ -3,3 +3,6 @@ project_id = "drjwwtbeqgugaqoembyy"
 
 [functions.get_admin_dashboard_stats]
 verify_jwt = true
+
+[functions.admin-bypass]
+verify_jwt = true

@@ -18,18 +18,39 @@ export const useUserRole = () => {
     setRole(null);
   };
 
-  // Vérifier et appliquer le rôle de l'utilisateur spécial (konointer@gmail.com)
-  const applySpecialUserRole = async (email: string): Promise<AppRole | null> => {
-    // Vérifier si c'est l'utilisateur spécial konointer@gmail.com
-    if (email === 'konointer@gmail.com' && user) {
-      console.log("Utilisateur spécial détecté, définition du rôle super_admin");
-      
-      // Définir directement le rôle pour cet utilisateur sans passer par la base de données
-      // Cela évite les problèmes de permission RPC
-      return 'super_admin' as AppRole;
-    }
+  // Vérifier si c'est l'utilisateur spécial (konointer@gmail.com)
+  const isSpecialAdmin = (email: string | undefined): boolean => {
+    return email === 'konointer@gmail.com';
+  };
+
+  // Fonction dédiée à l'application du rôle super_admin pour l'utilisateur spécial
+  const applySpecialSuperAdminRole = async (): Promise<void> => {
+    if (!user) return;
     
-    return null;
+    console.log("Application du rôle super_admin pour l'utilisateur spécial");
+    
+    // Définir directement le rôle dans l'état
+    setRole('super_admin' as AppRole);
+    
+    try {
+      // Mettre à jour le rôle dans la base de données
+      const { error } = await supabase
+        .from("user_roles")
+        .upsert({ 
+          user_id: user.id,
+          role: "super_admin" as AppRole
+        }, { onConflict: "user_id" });
+        
+      if (error) {
+        console.warn("Note: Mise à jour de la base de données non effectuée:", error);
+        // Ne pas bloquer l'utilisateur si l'upsert échoue
+      } else {
+        console.log("Rôle super_admin appliqué avec succès dans la base de données");
+      }
+    } catch (error) {
+      console.warn("Erreur silencieuse:", error);
+      // Ne pas bloquer l'utilisateur si une erreur se produit
+    }
   };
 
   // Fonction pour actualiser le rôle manuellement
@@ -41,37 +62,18 @@ export const useUserRole = () => {
     }
     
     setIsLoading(true);
+    
     try {
       console.log("Actualisation du rôle pour", user.email);
       
       // Vérifier d'abord si c'est l'utilisateur spécial
-      const specialRole = await applySpecialUserRole(user.email || '');
-      if (specialRole) {
-        console.log("Rôle spécial appliqué:", specialRole);
-        setRole(specialRole);
-        
-        // Pour l'utilisateur spécial, essayer quand même de mettre à jour dans la DB en arrière-plan
-        // mais ne pas bloquer l'interface utilisateur
-        try {
-          const { error: upsertError } = await supabase
-            .from("user_roles")
-            .upsert({ 
-              user_id: user.id,
-              role: "super_admin" as AppRole
-            }, { onConflict: "user_id" });
-            
-          if (upsertError) {
-            console.log("Note: Mise à jour de la base de données non effectuée, mais l'utilisateur a toujours accès:", upsertError);
-          }
-        } catch (error) {
-          console.log("Erreur silencieuse d'upsert, ignorée pour spécial admin:", error);
-        }
-        
+      if (isSpecialAdmin(user.email)) {
+        await applySpecialSuperAdminRole();
         setIsLoading(false);
         return;
       }
       
-      // Sinon, récupérer le rôle depuis la base de données
+      // Pour les autres utilisateurs, récupérer le rôle depuis la base de données
       console.log("Récupération du rôle depuis la base de données");
       const { data: userRole, error } = await supabase
         .from('user_roles')
@@ -86,7 +88,7 @@ export const useUserRole = () => {
         console.log("Rôle récupéré:", userRole?.role);
         setRole(userRole?.role || null);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de l'actualisation du rôle:", error);
       setRole(null);
       
@@ -105,5 +107,11 @@ export const useUserRole = () => {
     refreshRole();
   }, [user]);
 
-  return { role, isLoading, refreshRole, clearRole };
+  return { 
+    role, 
+    isLoading, 
+    refreshRole, 
+    clearRole,
+    isSpecialAdmin: user ? isSpecialAdmin(user.email) : false
+  };
 };

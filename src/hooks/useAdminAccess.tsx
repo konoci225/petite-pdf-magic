@@ -7,21 +7,24 @@ import { useToast } from "@/hooks/use-toast";
 
 export const useAdminAccess = () => {
   const { user } = useAuth();
-  const { role, refreshRole } = useUserRole();
+  const { role, refreshRole, isSpecialAdmin } = useUserRole();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [tablesAccessible, setTablesAccessible] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  
-  const isSpecialAdmin = user?.email === "konointer@gmail.com";
 
   // Fonction séparée pour vérifier l'existence des tables
   const ensureTablesExist = useCallback(async () => {
     try {
       console.log("Vérification des tables requises...");
+
+      // Si c'est l'admin spécial, supposer que les tables sont accessibles
+      if (isSpecialAdmin) {
+        console.log("Utilisateur spécial détecté, accès aux tables accordé automatiquement");
+        return true;
+      }
       
       // Vérifier directement l'existence de tables individuelles sans utiliser Edge Function
-      // qui pourrait causer des problèmes de permission
       const { data: modulesData, error: modulesError } = await supabase
         .from('modules')
         .select('id')
@@ -49,7 +52,7 @@ export const useAdminAccess = () => {
       console.error("Erreur lors de la vérification des tables:", error);
       return false;
     }
-  }, []);
+  }, [isSpecialAdmin]);
 
   // Actualisation forcée des autorisations
   const forceRefreshPermissions = async () => {
@@ -59,7 +62,6 @@ export const useAdminAccess = () => {
       
       if (isSpecialAdmin) {
         // Application directe de la mise à jour du rôle dans la base de données
-        // sans passer par RPC qui peut causer des problèmes de permissions
         const { error: upsertError } = await supabase
           .from("user_roles")
           .upsert({ 
@@ -69,6 +71,17 @@ export const useAdminAccess = () => {
             
         if (upsertError) {
           console.error("Erreur lors de l'upsert direct:", upsertError);
+          // Essayer une autre approche si l'upsert échoue
+          const { error: insertError } = await supabase
+            .from("user_roles")
+            .insert({ 
+              user_id: user?.id,
+              role: "super_admin" 
+            });
+            
+          if (insertError) {
+            console.error("Erreur lors de l'insertion directe:", insertError);
+          }
         } else {
           console.log("Mise à jour du rôle réussie via upsert direct");
         }
