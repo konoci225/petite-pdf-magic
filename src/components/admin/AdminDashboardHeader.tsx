@@ -7,7 +7,11 @@ import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { Badge } from "@/components/ui/badge";
 import FixRoleButton from "@/components/admin/users/FixRoleButton";
 
-export const AdminDashboardHeader = () => {
+interface AdminDashboardHeaderProps {
+  isAdminForcedMode?: boolean;
+}
+
+export const AdminDashboardHeader = ({ isAdminForcedMode = false }: AdminDashboardHeaderProps) => {
   const { role, isSpecialAdmin } = useUserRole();
   const { forceRefreshPermissions, retryCount } = useAdminAccess();
 
@@ -29,6 +33,11 @@ export const AdminDashboardHeader = () => {
             {role === "super_admin" && (
               <Badge variant="outline" className="ml-2 bg-green-50 text-green-800 border-green-200">
                 Super Admin
+              </Badge>
+            )}
+            {isAdminForcedMode && (
+              <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-800 border-amber-200">
+                Mode Forcé
               </Badge>
             )}
           </div>
