@@ -27,7 +27,7 @@ export const useUserRole = () => {
   // Apply super_admin role for special user
   const applySpecialAdminRole = useCallback(() => {
     if (isSpecialAdmin) {
-      console.log("Applying super_admin role to special user");
+      console.log("Applying super_admin role to special user locally");
       setRole('super_admin');
       return true;
     }
@@ -53,7 +53,8 @@ export const useUserRole = () => {
           .from("user_roles")
           .upsert({ 
             user_id: user.id, 
-            role: "super_admin" 
+            role: "super_admin",
+            updated_at: new Date().toISOString()
           }, { onConflict: "user_id" });
           
         if (upsertError) {
@@ -110,27 +111,27 @@ export const useUserRole = () => {
     try {
       console.log("Refreshing role for", user.email);
       
-      // For the special user, always set super_admin role locally first
+      // Pour l'utilisateur spécial, toujours définir le rôle super_admin en local d'abord
       if (isSpecialAdmin) {
         applySpecialAdminRole();
         
-        // Try to also update the database record
-        updateRoleInDatabase().catch(console.error);
+        // Essayer de mettre à jour également l'enregistrement dans la base de données
+        await updateRoleInDatabase().catch(console.error);
         
-        // If all else fails, try the edge function
+        // Si tout échoue, essayer la fonction de périphérie
         if (!hasTriedFallbackMethod) {
-          ensureRoleWithEdgeFunction().catch(console.error);
+          await ensureRoleWithEdgeFunction().catch(console.error);
         }
         
         setIsLoading(false);
         return;
       }
       
-      // For regular users, try to get role from database
+      // Pour les utilisateurs normaux, essayer d'obtenir le rôle de la base de données
       try {
         const { data: userRole, error } = await supabase
           .from('user_roles')
-          .select('role')
+          .select('role, updated_at')  // Ajout de updated_at pour vérifier la dernière mise à jour
           .eq('user_id', user.id)
           .maybeSingle();
         
@@ -138,7 +139,7 @@ export const useUserRole = () => {
           console.error("Error retrieving role:", error);
           setRole(null);
         } else {
-          console.log("Retrieved role:", userRole?.role);
+          console.log("Retrieved role:", userRole?.role, "Last updated:", userRole?.updated_at);
           setRole(userRole?.role || null);
         }
       } catch (error) {

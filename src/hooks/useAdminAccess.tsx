@@ -85,7 +85,7 @@ export const useAdminAccess = () => {
         toast({
           title: "Accès limité",
           description: "L'accès aux données reste limité. Vérifiez votre rôle.",
-          variant: "destructive", // Changed from "warning" to "destructive" as only "default" or "destructive" are allowed
+          variant: "destructive", // Seuls "default" ou "destructive" sont autorisés
         });
       }
     } catch (error: any) {

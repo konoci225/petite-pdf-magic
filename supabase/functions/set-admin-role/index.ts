@@ -53,7 +53,7 @@ serve(async (req) => {
       throw new Error('Could not determine user ID')
     }
     
-    // Use the new function with return type boolean
+    // Utiliser la fonction RPC mise à jour qui retourne un booléen
     const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
       'force_set_super_admin_role',
       { target_user_id: targetUserId }
@@ -84,7 +84,11 @@ serve(async (req) => {
         const { error: roleError } = await supabaseAdmin
           .from('user_roles')
           .upsert(
-            { user_id: targetUserId, role: 'super_admin' },
+            { 
+              user_id: targetUserId, 
+              role: 'super_admin',
+              updated_at: new Date().toISOString() 
+            },
             { onConflict: 'user_id' }
           )
         
