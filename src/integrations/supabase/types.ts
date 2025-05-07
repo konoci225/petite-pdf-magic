@@ -220,7 +220,11 @@ export type Database = {
       }
       force_set_super_admin_role: {
         Args: { target_user_id: string }
-        Returns: undefined
+        Returns: boolean
+      }
+      force_set_super_admin_role_by_email: {
+        Args: { user_email: string }
+        Returns: boolean
       }
       get_user_role: {
         Args: { user_id: string }

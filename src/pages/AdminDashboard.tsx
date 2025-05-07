@@ -32,7 +32,7 @@ const AdminDashboard = () => {
 
   console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "isSpecialAdmin:", isSpecialAdmin);
 
-  // Fonction pour initialiser les tables si nécessaire
+  // Fonction simplifiée pour initialiser les tables si nécessaire
   const initializeAdminAccess = async () => {
     if (!user || isInitializing) return;
     
@@ -40,31 +40,11 @@ const AdminDashboard = () => {
     try {
       console.log("Tentative d'initialisation des tables administrateur...");
       
-      // Tenter d'initialiser les modules par défaut
-      // Use a type assertion to bypass TypeScript's type checking for the RPC function
+      // Essayer d'initialiser les modules par défaut
       const { error } = await supabase.rpc('create_default_modules' as any);
       
       if (error) {
         console.warn("Erreur lors de l'initialisation des modules:", error);
-        
-        // Tenter de réparer les permissions pour l'utilisateur spécial
-        if (isSpecialAdmin) {
-          console.log("Tentative de réparation des permissions pour l'utilisateur spécial...");
-          try {
-            const { data, error: fnError } = await supabase.functions.invoke("set-admin-role", {
-              body: { email: user.email }
-            });
-            
-            if (fnError) {
-              console.error("Erreur de la fonction edge:", fnError);
-            } else if (data && data.success) {
-              console.log("Réparation réussie via fonction edge");
-              await refreshRole();
-            }
-          } catch (e) {
-            console.error("Erreur lors de la réparation automatique:", e);
-          }
-        }
       } else {
         console.log("Initialisation des modules réussie");
         toast({
@@ -86,13 +66,13 @@ const AdminDashboard = () => {
     }
   }, [user, role, isSpecialAdmin]);
 
-  // Show loading screen when role is still loading
+  // Afficher l'écran de chargement quand le rôle est en cours de chargement
   if (roleLoading) {
     console.log("Chargement du rôle en cours...");
     return <AdminDashboardLoader />;
   }
 
-  // Si c'est l'admin spécial mais sans le bon rôle affiché, proposer de réparer
+  // Pour l'admin spécial sans le bon rôle affiché, proposer de réparer
   if (isSpecialAdmin && role !== "super_admin") {
     return (
       <Layout>
@@ -121,24 +101,24 @@ const AdminDashboard = () => {
     );
   }
 
-  // Si c'est l'admin spécial konointer@gmail.com, autoriser l'accès même si le rôle n'est pas super_admin
+  // L'admin spécial a toujours accès, même si son rôle n'est pas super_admin
   if (isSpecialAdmin) {
     console.log("Accès autorisé pour l'utilisateur spécial konointer@gmail.com");
     // Continue avec l'accès au tableau de bord
   } 
-  // Sinon, vérifier le rôle normalement
+  // Sinon, vérification normale du rôle
   else if (!roleLoading && role !== "super_admin") {
     console.log("L'utilisateur n'est pas super_admin, redirection...");
     return <Navigate to="/dashboard" />;
   }
 
-  // Show loading screen while checking tables
+  // Écran de chargement pendant la vérification des tables
   if (isLoading) {
     console.log("Vérification de l'accès aux tables...");
     return <AdminDashboardLoader />;
   }
 
-  // Show error if tables are not accessible
+  // Afficher une erreur si les tables ne sont pas accessibles
   if (!tablesAccessible && !isSpecialAdmin) {
     return (
       <Layout>

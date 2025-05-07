@@ -24,8 +24,8 @@ const FixRoleButton = () => {
     
     if (!canAttemptRepair()) {
       toast({
-        title: "Too many attempts",
-        description: "Please reload the page before trying again.",
+        title: "Trop de tentatives",
+        description: "Veuillez recharger la page avant de réessayer.",
         variant: "destructive",
       });
       return;
@@ -36,45 +36,44 @@ const FixRoleButton = () => {
     
     try {
       console.log("Attempting permission repair for", user.email);
-      
-      // Step 1: First try the Edge Function (most reliable)
       let success = false;
       
+      // Méthode 1: Utilisation directe de la fonction RPC
       try {
-        const { data, error } = await supabase.functions.invoke("set-admin-role", {
-          body: { email: user.email, userId: user.id }
-        });
+        const { data: rpcResult, error: rpcError } = await supabase.rpc(
+          'force_set_super_admin_role',
+          { target_user_id: user.id }
+        );
         
-        if (!error && data?.success) {
-          console.log("Successfully repaired via Edge Function");
+        if (!rpcError && rpcResult === true) {
+          console.log("Successfully repaired via RPC function");
           success = true;
-        } else if (error) {
-          console.error("Edge Function error:", error);
+        } else if (rpcError) {
+          console.error("RPC error:", rpcError);
         }
-      } catch (edgeErr) {
-        console.error("Edge Function error (catch):", edgeErr);
+      } catch (rpcErr) {
+        console.error("RPC error (catch):", rpcErr);
       }
       
-      // Step 2: Try the RPC function
+      // Méthode 2: Utilisation de la fonction Edge
       if (!success) {
         try {
-          const { error: rpcError, data: rpcData } = await supabase.rpc(
-            'force_set_super_admin_role',
-            { target_user_id: user.id }
-          );
+          const { data, error } = await supabase.functions.invoke("set-admin-role", {
+            body: { email: user.email, userId: user.id }
+          });
           
-          if (!rpcError && rpcData) {
-            console.log("Successfully repaired via RPC");
+          if (!error && data?.success) {
+            console.log("Successfully repaired via Edge Function");
             success = true;
-          } else if (rpcError) {
-            console.error("RPC error:", rpcError);
+          } else if (error) {
+            console.error("Edge Function error:", error);
           }
-        } catch (rpcErr) {
-          console.error("RPC error (catch):", rpcErr);
+        } catch (edgeErr) {
+          console.error("Edge Function error (catch):", edgeErr);
         }
       }
       
-      // Step 3: Try direct upsert
+      // Méthode 3: Insertion directe dans la table user_roles
       if (!success) {
         try {
           const { error: upsertError } = await supabase
@@ -95,55 +94,40 @@ const FixRoleButton = () => {
         }
       }
       
-      // Step 4: Try direct call to the edge function for special admin handling
-      if (!success && isSpecialAdmin) {
-        try {
-          // Instead of using rpc('ensure_special_admin'), use the edge function
-          const { error: edgeFunctionError } = await supabase.functions.invoke("set-admin-role", {
-            body: { forceRepair: true, email: user.email }
-          });
-          
-          if (!edgeFunctionError) {
-            console.log("Successfully repaired via special admin edge function");
-            success = true;
-          }
-        } catch (specialErr) {
-          console.error("Special admin repair error:", specialErr);
-        }
-      }
-      
-      // Update local role state
+      // Mise à jour de l'état local du rôle
       await refreshRole();
       
-      // Show success if any method worked
       if (success) {
         toast({
-          title: "Success",
-          description: "Your permissions have been repaired. The page will reload.",
+          title: "Succès",
+          description: "Vos autorisations ont été réparées. La page va se recharger.",
         });
-      } else if (isSpecialAdmin) {
-        // Special fallback for konointer@gmail.com
-        toast({
-          title: "Fallback mode",
-          description: "Using local override for special admin user.",
-        });
-        success = true;
-      } else {
-        throw new Error("All repair methods failed");
-      }
-      
-      // Reload page on success to apply new permissions
-      if (success) {
+        
+        // Recharger la page pour appliquer les nouvelles autorisations
         setTimeout(() => {
           window.location.reload();
         }, 1500);
+      } else if (isSpecialAdmin) {
+        // Contournement spécial pour konointer@gmail.com
+        toast({
+          title: "Mode de secours",
+          description: "Utilisation du mode local pour l'administrateur spécial.",
+        });
+        success = true;
+        
+        // Recharger quand même la page
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error("Toutes les méthodes de réparation ont échoué");
       }
     } catch (error: any) {
       console.error("Permission repair error:", error);
       
       toast({
-        title: "Error",
-        description: `Unable to repair permissions: ${error.message}`,
+        title: "Erreur",
+        description: `Impossible de réparer les autorisations: ${error.message}`,
         variant: "destructive",
       });
     } finally {
@@ -155,13 +139,9 @@ const FixRoleButton = () => {
     setIsRepairing(true);
     try {
       await refreshRole();
-      // For special admin, also try the edge function silently
-      if (isSpecialAdmin) {
-        ensureRoleWithEdgeFunction().catch(console.error);
-      }
       toast({
-        title: "Role refreshed",
-        description: "Your role information has been refreshed.",
+        title: "Rôle actualisé",
+        description: "Vos informations de rôle ont été actualisées.",
       });
     } catch (error) {
       console.error("Error refreshing role:", error);

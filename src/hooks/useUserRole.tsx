@@ -41,39 +41,32 @@ export const useUserRole = () => {
     try {
       console.log("Attempting to update role in database for special user");
       
-      // Try running the force_set_super_admin_role RPC function which is in our TypeScript types
-      try {
-        // Using the force_set_super_admin_role function instead of ensure_special_admin
-        const { data, error } = await supabase.rpc('force_set_super_admin_role', {
-          target_user_id: user.id
-        });
-        
-        if (error) {
-          console.error("Error with force_set_super_admin_role:", error);
+      // Using the force_set_super_admin_role function with boolean return type
+      const { data, error } = await supabase.rpc('force_set_super_admin_role', {
+        target_user_id: user.id
+      });
+      
+      if (error) {
+        console.error("Error with force_set_super_admin_role:", error);
+        // If RPC fails, try direct upsert
+        const { error: upsertError } = await supabase
+          .from("user_roles")
+          .upsert({ 
+            user_id: user.id, 
+            role: "super_admin" 
+          }, { onConflict: "user_id" });
+          
+        if (upsertError) {
+          console.error("Error with direct upsert:", upsertError);
           return false;
         }
         
-        console.log("Successfully ran force_set_super_admin_role");
+        console.log("Successfully updated role via direct upsert");
         return true;
-      } catch (rpcErr) {
-        console.error("Error with force_set_super_admin_role:", rpcErr);
       }
       
-      // Try upsert directly
-      const { error: upsertError } = await supabase
-        .from("user_roles")
-        .upsert({ 
-          user_id: user.id, 
-          role: "super_admin" 
-        }, { onConflict: "user_id" });
-        
-      if (upsertError) {
-        console.error("Error with direct upsert:", upsertError);
-        return false;
-      }
-      
-      console.log("Successfully updated role via direct upsert");
-      return true;
+      console.log("Successfully ran force_set_super_admin_role:", data);
+      return data === true;
     } catch (err) {
       console.error("Error updating role in database:", err);
       return false;

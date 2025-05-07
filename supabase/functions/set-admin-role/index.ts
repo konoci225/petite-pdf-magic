@@ -21,7 +21,7 @@ serve(async (req) => {
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
     
     // Get the request data
-    const { email, userId } = await req.json()
+    const { email, userId, forceRepair } = await req.json()
     
     if (!email && !userId) {
       throw new Error('Either email or userId is required')
@@ -53,39 +53,58 @@ serve(async (req) => {
       throw new Error('Could not determine user ID')
     }
     
-    // Use the RPC function with SECURITY DEFINER to bypass RLS
-    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc(
+    // Use the new function with return type boolean
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
       'force_set_super_admin_role',
       { target_user_id: targetUserId }
     )
-      
+    
+    let success = false
+    
     if (rpcError) {
       console.error('Error with RPC method:', rpcError)
       
-      // Fallback to direct insert/update if RPC fails
-      const { error: roleError } = await supabaseAdmin
-        .from('user_roles')
-        .upsert(
-          { user_id: targetUserId, role: 'super_admin' },
-          { onConflict: 'user_id' }
+      // Try the function that uses email if the direct approach fails
+      if (email) {
+        const { data: emailResult, error: emailError } = await supabaseAdmin.rpc(
+          'force_set_super_admin_role_by_email',
+          { user_email: email }
         )
-      
-      if (roleError) {
-        console.error('Error with direct upsert:', roleError)
-        throw new Error(`Error setting role: ${roleError.message}`)
+        
+        if (!emailError && emailResult === true) {
+          console.log('Successfully set super_admin role via email function')
+          success = true
+        } else if (emailError) {
+          console.error('Error with email function:', emailError)
+        }
       }
-    }
-    
-    // Try to run the ensure_special_admin function for good measure
-    try {
-      await supabaseAdmin.rpc('ensure_special_admin')
-    } catch (error) {
-      console.log('Non-critical error running ensure_special_admin:', error)
-      // Non-critical error, continue
+      
+      // Fallback to direct insert/update if RPC fails
+      if (!success) {
+        const { error: roleError } = await supabaseAdmin
+          .from('user_roles')
+          .upsert(
+            { user_id: targetUserId, role: 'super_admin' },
+            { onConflict: 'user_id' }
+          )
+        
+        if (roleError) {
+          console.error('Error with direct upsert:', roleError)
+        } else {
+          console.log('Successfully set role via direct upsert')
+          success = true
+        }
+      }
+    } else {
+      console.log('Successfully set super_admin role via main RPC function')
+      success = true
     }
     
     return new Response(
-      JSON.stringify({ success: true, message: 'Successfully set super_admin role' }),
+      JSON.stringify({ 
+        success: success, 
+        message: success ? 'Successfully set super_admin role' : 'Failed to set super_admin role' 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   } catch (error) {
