@@ -14,6 +14,14 @@ export const useAdminAccess = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [lastCheckTime, setLastCheckTime] = useState(0);
 
+  // L'utilisateur spécial a toujours accès aux tables administratives
+  useEffect(() => {
+    if (isSpecialAdmin) {
+      setTablesAccessible(true);
+      setIsLoading(false);
+    }
+  }, [isSpecialAdmin]);
+
   // Vérification simplifiée d'existence des tables
   const checkTablesAccess = useCallback(async () => {
     // L'utilisateur spécial a toujours accès
@@ -41,7 +49,7 @@ export const useAdminAccess = () => {
   // Anti-rebond pour les contrôles fréquents
   const canCheckAgain = useCallback(() => {
     const now = Date.now();
-    return (now - lastCheckTime) > 5000; // 5 secondes minimum entre les vérifications
+    return (now - lastCheckTime) > 2000; // 2 secondes minimum entre les vérifications
   }, [lastCheckTime]);
 
   // Forcer le rafraîchissement des permissions
@@ -85,7 +93,7 @@ export const useAdminAccess = () => {
         toast({
           title: "Accès limité",
           description: "L'accès aux données reste limité. Vérifiez votre rôle.",
-          variant: "destructive", // Seuls "default" ou "destructive" sont autorisés
+          variant: "destructive",
         });
       }
     } catch (error: any) {
@@ -108,17 +116,17 @@ export const useAdminAccess = () => {
         return;
       }
 
+      // Si c'est l'admin spécial, accorder l'accès immédiatement
+      if (isSpecialAdmin) {
+        setTablesAccessible(true);
+        setIsLoading(false);
+        return;
+      }
+      
       setIsLoading(true);
       setLastCheckTime(Date.now());
       
       try {
-        // Utilisateur spécial a toujours accès
-        if (isSpecialAdmin) {
-          setTablesAccessible(true);
-          setIsLoading(false);
-          return;
-        }
-        
         // Vérification standard pour les autres utilisateurs
         const hasAccess = await checkTablesAccess();
         setTablesAccessible(hasAccess);
@@ -138,6 +146,8 @@ export const useAdminAccess = () => {
     tablesAccessible,
     retryCount,
     forceRefreshPermissions,
-    refreshRole
+    refreshRole,
+    // Ajouter explicitement l'accès pour l'administrateur spécial
+    isSpecialAdminAccess: isSpecialAdmin
   };
 };

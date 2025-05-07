@@ -12,114 +12,130 @@ export const useUserRole = () => {
   const { toast } = useToast();
   const [role, setRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasTriedFallbackMethod, setHasTriedFallbackMethod] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
+  const [hasTriedEdgeFunction, setHasTriedEdgeFunction] = useState(false);
   
-  // Reset role on logout
+  // Détection de l'administrateur spécial
+  const isSpecialAdmin = user?.email === 'konointer@gmail.com';
+  
+  // Réinitialisation du rôle à la déconnexion
   const clearRole = useCallback(() => {
     setRole(null);
     setIsLoading(false);
-    setHasTriedFallbackMethod(false);
+    setHasTriedEdgeFunction(false);
   }, []);
 
-  // Check if this is the special admin user
-  const isSpecialAdmin = user?.email === 'konointer@gmail.com';
-  
-  // Apply super_admin role for special user
+  // Application locale du rôle super_admin pour l'administrateur spécial
   const applySpecialAdminRole = useCallback(() => {
     if (isSpecialAdmin) {
-      console.log("Applying super_admin role to special user locally");
+      console.log("Application du rôle super_admin pour l'utilisateur spécial localement");
       setRole('super_admin');
       return true;
     }
     return false;
   }, [isSpecialAdmin]);
 
-  // Try to update the role in the database
+  // Mise à jour du rôle dans la base de données
   const updateRoleInDatabase = useCallback(async () => {
-    if (!isSpecialAdmin || !user) return false;
+    if (!user) return false;
     
-    try {
-      console.log("Attempting to update role in database for special user");
-      
-      // Using the force_set_super_admin_role function with boolean return type
-      const { data, error } = await supabase.rpc('force_set_super_admin_role', {
-        target_user_id: user.id
-      });
-      
-      if (error) {
-        console.error("Error with force_set_super_admin_role:", error);
-        // If RPC fails, try direct upsert
-        const { error: upsertError } = await supabase
-          .from("user_roles")
-          .upsert({ 
-            user_id: user.id, 
-            role: "super_admin",
-            updated_at: new Date().toISOString()
-          }, { onConflict: "user_id" });
+    if (isSpecialAdmin) {
+      try {
+        console.log("Tentative de mise à jour du rôle pour l'utilisateur spécial");
+        
+        // Utilisation de la fonction RPC avec retour booléen
+        const { data, error } = await supabase.rpc('force_set_super_admin_role', {
+          target_user_id: user.id
+        });
+        
+        if (error) {
+          console.error("Erreur avec force_set_super_admin_role:", error);
           
-        if (upsertError) {
-          console.error("Error with direct upsert:", upsertError);
-          return false;
+          // Si RPC échoue, tenter insertion directe
+          const { error: upsertError } = await supabase
+            .from("user_roles")
+            .upsert({ 
+              user_id: user.id, 
+              role: "super_admin",
+              updated_at: new Date().toISOString()
+            }, { onConflict: "user_id" });
+            
+          if (upsertError) {
+            console.error("Erreur avec insertion directe:", upsertError);
+            return false;
+          }
+          
+          console.log("Rôle mis à jour avec succès via insertion directe");
+          return true;
         }
         
-        console.log("Successfully updated role via direct upsert");
-        return true;
+        console.log("Exécution réussie de force_set_super_admin_role:", data);
+        return data === true;
+      } catch (err) {
+        console.error("Erreur lors de la mise à jour du rôle:", err);
+        return false;
       }
-      
-      console.log("Successfully ran force_set_super_admin_role:", data);
-      return data === true;
-    } catch (err) {
-      console.error("Error updating role in database:", err);
-      return false;
     }
+    
+    return false;
   }, [isSpecialAdmin, user]);
 
-  // Fallback method to ensure the role is set
+  // Méthode de secours avec Edge Function
   const ensureRoleWithEdgeFunction = useCallback(async () => {
-    if (!isSpecialAdmin || !user || hasTriedFallbackMethod) return false;
+    if (!user || hasTriedEdgeFunction) return false;
     
-    setHasTriedFallbackMethod(true);
+    setHasTriedEdgeFunction(true);
     try {
-      console.log("Trying to set role via Edge Function for special user");
+      console.log("Tentative de définir le rôle via Edge Function pour l'administrateur spécial");
       
       const { data, error } = await supabase.functions.invoke("set-admin-role", {
-        body: { email: user.email }
+        body: { 
+          email: user.email,
+          userId: user.id
+        }
       });
       
       if (error) {
-        console.error("Edge function error:", error);
+        console.error("Erreur de fonction Edge:", error);
         return false;
       }
       
-      console.log("Edge function response:", data);
+      console.log("Réponse de la fonction Edge:", data);
       return data?.success || false;
     } catch (err) {
-      console.error("Edge function error (catch):", err);
+      console.error("Erreur de fonction Edge (catch):", err);
       return false;
     }
-  }, [isSpecialAdmin, user, hasTriedFallbackMethod]);
+  }, [user, hasTriedEdgeFunction]);
 
-  // Function to manually refresh the role
+  // Fonction pour rafraîchir manuellement le rôle
   const refreshRole = useCallback(async () => {
     if (!user) {
       clearRole();
       return;
     }
     
+    const now = Date.now();
+    if (now - lastRefreshTime < 1000) {
+      console.log("Rafraîchissement limité pour éviter les boucles");
+      return;
+    }
+    
     setIsLoading(true);
+    setLastRefreshTime(now);
     
     try {
-      console.log("Refreshing role for", user.email);
+      console.log("Rafraîchissement du rôle pour", user.email);
       
       // Pour l'utilisateur spécial, toujours définir le rôle super_admin en local d'abord
       if (isSpecialAdmin) {
         applySpecialAdminRole();
         
-        // Essayer de mettre à jour également l'enregistrement dans la base de données
+        // Essayer de mettre à jour l'enregistrement dans la base de données
         await updateRoleInDatabase().catch(console.error);
         
-        // Si tout échoue, essayer la fonction de périphérie
-        if (!hasTriedFallbackMethod) {
+        // Si tout échoue, essayer la fonction edge de périphérie
+        if (!hasTriedEdgeFunction) {
           await ensureRoleWithEdgeFunction().catch(console.error);
         }
         
@@ -131,32 +147,32 @@ export const useUserRole = () => {
       try {
         const { data: userRole, error } = await supabase
           .from('user_roles')
-          .select('role, updated_at')  // Ajout de updated_at pour vérifier la dernière mise à jour
+          .select('role, updated_at')
           .eq('user_id', user.id)
           .maybeSingle();
         
         if (error) {
-          console.error("Error retrieving role:", error);
+          console.error("Erreur lors de la récupération du rôle:", error);
           setRole(null);
         } else {
-          console.log("Retrieved role:", userRole?.role, "Last updated:", userRole?.updated_at);
+          console.log("Rôle récupéré:", userRole?.role, "Dernière mise à jour:", userRole?.updated_at);
           setRole(userRole?.role || null);
         }
       } catch (error) {
-        console.error("Error during role refresh:", error);
+        console.error("Erreur lors du rafraîchissement du rôle:", error);
         setRole(null);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [user, isSpecialAdmin, applySpecialAdminRole, clearRole, updateRoleInDatabase, ensureRoleWithEdgeFunction, hasTriedFallbackMethod]);
+  }, [user, isSpecialAdmin, applySpecialAdminRole, clearRole, updateRoleInDatabase, ensureRoleWithEdgeFunction, hasTriedEdgeFunction, lastRefreshTime]);
 
-  // Load role when user changes
+  // Chargement du rôle lors du changement d'utilisateur
   useEffect(() => {
     refreshRole();
   }, [user, refreshRole]);
 
-  // Force super_admin role for special user
+  // Forcer le rôle super_admin pour l'utilisateur spécial
   useEffect(() => {
     if (isSpecialAdmin && role !== 'super_admin') {
       applySpecialAdminRole();
