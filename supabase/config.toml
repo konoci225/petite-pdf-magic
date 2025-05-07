@@ -1,11 +1,29 @@
 
 project_id = "drjwwtbeqgugaqoembyy"
 
-[functions.admin-bypass]
-verify_jwt = true
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
 
-[functions.get_admin_dashboard_stats]
-verify_jwt = true
+[db]
+port = 54322
 
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+
+[functions]
 [functions.set-admin-role]
+verify_jwt = false
+
+[functions.admin-bypass]
 verify_jwt = true

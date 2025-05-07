@@ -14,7 +14,9 @@ serve(async (req) => {
   }
 
   try {
-    // Create a Supabase client with the Auth context of the user that called the function
+    console.log("Fonction admin-bypass appelée")
+    
+    // Create a Supabase client with SERVICE ROLE KEY
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -38,15 +40,22 @@ serve(async (req) => {
 
     // Handle different actions
     if (action === 'force_super_admin_role') {
+      console.log("Action force_super_admin_role demandée pour", targetUserId || user.id)
+      
       // Use the admin-powered client to set the user's role directly, bypassing RLS
       const { error } = await supabaseClient
         .from('user_roles')
         .upsert(
-          { user_id: targetUserId || user.id, role: 'super_admin' },
+          { user_id: targetUserId || user.id, role: 'super_admin', updated_at: new Date().toISOString() },
           { onConflict: 'user_id' }
         )
       
-      if (error) throw error
+      if (error) {
+        console.error("Erreur lors de l'upsert du rôle:", error)
+        throw error
+      }
+      
+      console.log("Rôle défini avec succès pour", targetUserId || user.id)
       
       return new Response(
         JSON.stringify({ success: true, message: 'Super admin role applied successfully' }),

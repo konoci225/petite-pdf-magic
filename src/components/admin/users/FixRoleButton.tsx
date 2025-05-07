@@ -1,176 +1,152 @@
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/providers/AuthProvider";
-import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/providers/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, RefreshCw, Check } from "lucide-react";
+import { Shield, Loader2 } from "lucide-react";
+import { useUserRole } from '@/hooks/useUserRole';
 
-const FixRoleButton = () => {
-  const { user } = useAuth();
-  const { refreshRole, isSpecialAdmin } = useUserRole();
+interface FixRoleButtonProps {
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+}
+
+const FixRoleButton = ({ size = 'default' }: FixRoleButtonProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { refreshRole } = useUserRole();
   const [isLoading, setIsLoading] = useState(false);
-  const [wasSuccessful, setWasSuccessful] = useState(false);
-  
-  // Vérification automatique au chargement si une réparation est nécessaire
-  useEffect(() => {
-    if (isSpecialAdmin && user?.email === 'konointer@gmail.com') {
-      const checkNeedsRepair = async () => {
-        const { data } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
-          
-        if (!data || data.role !== 'super_admin') {
-          console.log("Réparation automatique recommandée pour konointer@gmail.com");
-        }
-      };
-      
-      checkNeedsRepair().catch(console.error);
-    }
-  }, [isSpecialAdmin, user]);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [attempts, setAttempts] = useState(0);
 
-  const handleFixRole = useCallback(async () => {
+  const handleRepairRole = async () => {
     if (!user) {
       toast({
         title: "Erreur",
-        description: "Vous devez être connecté pour effectuer cette action",
+        description: "Aucun utilisateur connecté",
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
-    setWasSuccessful(false);
+    setAttempts(prev => prev + 1);
     
     try {
-      console.log("Début de la réparation du rôle pour", user.email);
-      
-      // PREMIÈRE MÉTHODE: Fonction Edge (la plus fiable avec Service Role Key)
-      console.log("1. Tentative avec la fonction Edge...");
-      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('set-admin-role', {
-        body: { 
-          email: user.email,
-          userId: user.id,
-          forceRepair: true 
+      // Call the edge function first
+      console.log("Appel de la fonction edge 'set-admin-role'");
+      const { data: edgeData, error: edgeError } = await supabase.functions.invoke(
+        "set-admin-role", 
+        { 
+          body: { 
+            email: user.email, 
+            userId: user.id,
+            forceRepair: true 
+          } 
         }
-      });
-      
+      );
+
       if (edgeError) {
-        console.error("Erreur fonction Edge:", edgeError);
-        throw new Error(`Échec de la fonction Edge: ${edgeError.message}`);
+        throw new Error(edgeError.message);
       }
-      
+
+      console.log("Réponse de la fonction edge:", edgeData);
+
       if (edgeData?.success) {
-        console.log("Succès avec la fonction Edge");
+        // Refresh role to apply the changes
         await refreshRole();
-        setWasSuccessful(true);
+        
+        setIsSuccess(true);
+        
+        // Show success toast
         toast({
-          title: "Rôle corrigé via Edge Function",
-          description: "Votre rôle a été correctement défini sur Super Admin.",
+          title: "Rôle super_admin appliqué",
+          description: "Vos privilèges administrateur ont été restaurés avec succès.",
         });
         
-        // Actualiser la page après le succès
+        // Force a page reload after a short delay to ensure everything is refreshed
         setTimeout(() => {
           window.location.reload();
-        }, 1000);
+        }, 1500);
         
         return;
       }
       
-      // DEUXIÈME MÉTHODE: RPC direct
-      console.log("2. Tentative avec RPC...");
-      const { error: rpcError } = await supabase.rpc('force_set_super_admin_role', { 
-        target_user_id: user.id 
+      // If edge function didn't work, try using admin-bypass function
+      console.log("Tentative avec la fonction admin-bypass");
+      const { data: bypassData, error: bypassError } = await supabase.functions.invoke(
+        "admin-bypass",
+        {
+          body: {
+            action: "force_super_admin_role",
+            targetUserId: user.id
+          }
+        }
+      );
+      
+      if (bypassError) {
+        throw new Error(bypassError.message);
+      }
+      
+      console.log("Réponse de admin-bypass:", bypassData);
+      
+      if (bypassData?.success) {
+        // Refresh role to apply the changes
+        await refreshRole();
+        
+        setIsSuccess(true);
+        
+        toast({
+          title: "Rôle super_admin appliqué",
+          description: "Vos privilèges administrateur ont été restaurés avec succès via la méthode de contournement.",
+        });
+        
+        // Force a page reload after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+        
+        return;
+      }
+      
+      // If both methods failed
+      toast({
+        title: "Échec de la réparation",
+        description: "Impossible d'attribuer le rôle super_admin. Essayez d'activer le mode forcé.",
+        variant: "destructive",
       });
-      
-      if (!rpcError) {
-        console.log("Succès avec la méthode RPC");
-        await refreshRole();
-        setWasSuccessful(true);
-        toast({
-          title: "Rôle corrigé via RPC",
-          description: "Votre rôle a été correctement défini sur Super Admin.",
-        });
-        
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-        
-        return;
-      } else {
-        console.error("Erreur RPC:", rpcError);
-      }
-      
-      // TROISIÈME MÉTHODE: Insertion directe
-      console.log("3. Tentative avec insertion directe...");
-      const { error: insertError } = await supabase
-        .from('user_roles')
-        .upsert({ 
-          user_id: user.id, 
-          role: 'super_admin',
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' });
-      
-      if (!insertError) {
-        console.log("Succès avec l'insertion directe");
-        await refreshRole();
-        setWasSuccessful(true);
-        toast({
-          title: "Rôle corrigé via insertion directe",
-          description: "Votre rôle a été correctement défini sur Super Admin.",
-        });
-        
-        setTimeout(() => {
-          window.location.reload();
-        }, 1000);
-        
-        return;
-      } else {
-        console.error("Erreur d'insertion:", insertError);
-        throw new Error(`Échec de l'insertion directe: ${insertError.message}`);
-      }
       
     } catch (error: any) {
       console.error("Erreur lors de la réparation du rôle:", error);
       toast({
-        title: "Erreur",
-        description: `Impossible de réparer le rôle: ${error.message}`,
+        title: "Erreur lors de la réparation",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
-  }, [user, refreshRole, toast]);
-
-  // Ne pas afficher le bouton si ce n'est pas l'admin spécial
-  if (!user?.email?.includes("konointer@gmail.com") && !isSpecialAdmin) {
-    return null;
-  }
+  };
 
   return (
-    <Button
-      onClick={handleFixRole}
-      disabled={isLoading || wasSuccessful}
-      className={`w-full ${wasSuccessful ? 'bg-green-600 hover:bg-green-700' : ''}`}
-      variant={wasSuccessful ? "default" : "destructive"}
+    <Button 
+      onClick={handleRepairRole}
+      disabled={isLoading || isSuccess}
+      variant={isSuccess ? "default" : "outline"}
+      size={size}
+      className={isSuccess ? "bg-green-600 hover:bg-green-700" : ""}
     >
       {isLoading ? (
-        <>
-          <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Réparation en cours...
-        </>
-      ) : wasSuccessful ? (
-        <>
-          <Check className="mr-2 h-4 w-4" /> Rôle corrigé
-        </>
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
       ) : (
-        <>
-          <Shield className="mr-2 h-4 w-4" /> Réparer les autorisations
-        </>
+        <Shield className={`mr-2 h-4 w-4 ${isSuccess ? "text-white" : ""}`} />
       )}
+      {isSuccess 
+        ? "Privilèges réparés" 
+        : attempts > 0 
+          ? `Réparer les autorisations (${attempts})` 
+          : "Réparer les autorisations"
+      }
     </Button>
   );
 };

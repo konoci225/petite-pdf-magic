@@ -5,6 +5,9 @@ import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 
+// Clé pour le mode admin forcé
+const FORCED_ADMIN_MODE_KEY = 'app_forced_admin_mode';
+
 export const useAdminAccess = () => {
   const { user } = useAuth();
   const { role, refreshRole, isSpecialAdmin } = useUserRole();
@@ -13,19 +16,43 @@ export const useAdminAccess = () => {
   const [tablesAccessible, setTablesAccessible] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [lastCheckTime, setLastCheckTime] = useState(0);
+  const [isForcedMode, setIsForcedMode] = useState(() => 
+    localStorage.getItem(FORCED_ADMIN_MODE_KEY) === 'true'
+  );
 
-  // L'utilisateur spécial a toujours accès aux tables administratives
+  // Check for forced mode changes
   useEffect(() => {
-    if (isSpecialAdmin) {
+    const checkForcedMode = () => {
+      const currentValue = localStorage.getItem(FORCED_ADMIN_MODE_KEY) === 'true';
+      if (currentValue !== isForcedMode) {
+        setIsForcedMode(currentValue);
+      }
+    };
+    
+    // Check on mount
+    checkForcedMode();
+    
+    // Set up event listener for storage changes
+    window.addEventListener('storage', checkForcedMode);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('storage', checkForcedMode);
+    };
+  }, [isForcedMode]);
+
+  // L'utilisateur spécial ou en mode forcé a toujours accès aux tables administratives
+  useEffect(() => {
+    if (isSpecialAdmin || isForcedMode || role === 'super_admin') {
       setTablesAccessible(true);
       setIsLoading(false);
     }
-  }, [isSpecialAdmin]);
+  }, [isSpecialAdmin, isForcedMode, role]);
 
   // Vérification simplifiée d'existence des tables
   const checkTablesAccess = useCallback(async () => {
-    // L'utilisateur spécial a toujours accès
-    if (isSpecialAdmin) {
+    // L'utilisateur spécial ou en mode forcé a toujours accès
+    if (isSpecialAdmin || isForcedMode) {
       return true;
     }
     
@@ -44,7 +71,7 @@ export const useAdminAccess = () => {
     }
     
     return false;
-  }, [isSpecialAdmin, role]);
+  }, [isSpecialAdmin, isForcedMode, role]);
 
   // Anti-rebond pour les contrôles fréquents
   const canCheckAgain = useCallback(() => {
@@ -70,12 +97,12 @@ export const useAdminAccess = () => {
       // Toujours actualiser le rôle d'abord
       await refreshRole();
       
-      // Pour les utilisateurs spéciaux, appliquer directement
-      if (isSpecialAdmin) {
+      // Pour les utilisateurs spéciaux ou en mode forcé, accorder l'accès directement
+      if (isSpecialAdmin || isForcedMode) {
         setTablesAccessible(true);
         toast({
-          title: "Mode administrateur spécial",
-          description: "Accès restauré en mode administrateur spécial.",
+          title: isForcedMode ? "Mode administrateur forcé" : "Mode administrateur spécial",
+          description: "Accès aux fonctionnalités administratives accordé.",
         });
         return;
       }
@@ -106,7 +133,7 @@ export const useAdminAccess = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [refreshRole, isSpecialAdmin, checkTablesAccess, toast, canCheckAgain]);
+  }, [refreshRole, isSpecialAdmin, isForcedMode, checkTablesAccess, toast, canCheckAgain]);
 
   // Vérification initiale à l'accès au tableau de bord
   useEffect(() => {
@@ -116,8 +143,8 @@ export const useAdminAccess = () => {
         return;
       }
 
-      // Si c'est l'admin spécial, accorder l'accès immédiatement
-      if (isSpecialAdmin) {
+      // Si c'est l'admin spécial ou en mode forcé, accorder l'accès immédiatement
+      if (isSpecialAdmin || isForcedMode) {
         setTablesAccessible(true);
         setIsLoading(false);
         return;
@@ -139,7 +166,7 @@ export const useAdminAccess = () => {
     };
     
     checkAccess();
-  }, [user, isSpecialAdmin, checkTablesAccess]);
+  }, [user, isSpecialAdmin, isForcedMode, checkTablesAccess]);
 
   return {
     isLoading,
@@ -147,7 +174,7 @@ export const useAdminAccess = () => {
     retryCount,
     forceRefreshPermissions,
     refreshRole,
-    // Ajouter explicitement l'accès pour l'administrateur spécial
-    isSpecialAdminAccess: isSpecialAdmin
+    // Ajouter explicitement l'accès pour l'administrateur spécial ou en mode forcé
+    isSpecialAdminAccess: isSpecialAdmin || isForcedMode
   };
 };

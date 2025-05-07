@@ -66,6 +66,8 @@ serve(async (req) => {
       throw new Error('Could not determine user ID')
     }
     
+    // We'll try all methods and stop as soon as one succeeds
+    
     // MÉTHODE 1: Fonction RPC avec contournement RLS
     console.log("MÉTHODE 1: Tentative d'utiliser la fonction RPC force_set_super_admin_role")
     try {
@@ -84,29 +86,9 @@ serve(async (req) => {
       console.error("Exception lors de l'appel RPC:", e)
     }
     
-    // MÉTHODE 2: Si RPC échoue, essayer avec l'email
-    if (!success && email) {
-      console.log("MÉTHODE 2: Tentative avec la fonction email")
-      try {
-        const { data: emailResult, error: emailError } = await supabaseAdmin.rpc(
-          'force_set_super_admin_role_by_email',
-          { user_email: email }
-        )
-        
-        if (emailError) {
-          console.error('Erreur avec la fonction email:', emailError)
-        } else {
-          console.log('Succès avec fonction par email', emailResult)
-          success = true
-        }
-      } catch (e) {
-        console.error("Exception lors de l'appel de la fonction par email:", e)
-      }
-    }
-      
-    // MÉTHODE 3: Insertion directe dans la table
+    // MÉTHODE 2: Insertion directe dans la table
     if (!success) {
-      console.log("MÉTHODE 3: Tentative d'insertion directe")
+      console.log("MÉTHODE 2: Tentative d'insertion directe")
       try {
         const { error: insertError } = await supabaseAdmin
           .from('user_roles')
@@ -124,6 +106,27 @@ serve(async (req) => {
         }
       } catch (e) {
         console.error("Exception lors de l'insertion directe:", e)
+      }
+    }
+    
+    // MÉTHODE 3: SQL avec l'API REST
+    if (!success) {
+      console.log("MÉTHODE 3: Tentative avec SQL via REST API")
+      try {
+        // Exécuter SQL directement
+        const { error: sqlError } = await supabaseAdmin.rpc(
+          'force_admin_role_bypass_rls', 
+          { user_email: email }
+        )
+        
+        if (sqlError) {
+          console.error("Erreur avec la méthode SQL:", sqlError)
+        } else {
+          console.log("Succès avec la méthode SQL")
+          success = true
+        }
+      } catch (e) {
+        console.error("Exception lors de l'exécution SQL:", e)
       }
     }
     
