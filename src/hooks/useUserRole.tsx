@@ -7,8 +7,9 @@ import { useToast } from "@/hooks/use-toast";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
-// Clé pour le mode admin forcé
+// Key for the mode admin forcé
 const FORCED_ADMIN_MODE_KEY = 'app_forced_admin_mode';
+const SPECIAL_ADMIN_EMAIL = 'konointer@gmail.com';
 
 export const useUserRole = () => {
   const { user } = useAuth();
@@ -17,61 +18,86 @@ export const useUserRole = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
   const [hasTriedEdgeFunction, setHasTriedEdgeFunction] = useState(false);
+  const [hasTriedDirectRepair, setHasTriedDirectRepair] = useState(false);
   
-  // Détection de l'administrateur spécial
-  const isSpecialAdmin = user?.email === 'konointer@gmail.com';
+  // Special admin detection - very important for bypass mechanisms
+  const isSpecialAdmin = user?.email === SPECIAL_ADMIN_EMAIL;
   
   // Check for forced admin mode
   const isForcedAdminMode = useCallback(() => {
     return localStorage.getItem(FORCED_ADMIN_MODE_KEY) === 'true';
   }, []);
   
-  // Réinitialisation du rôle à la déconnexion
+  const enableForcedAdminMode = useCallback(() => {
+    if (isSpecialAdmin) {
+      localStorage.setItem(FORCED_ADMIN_MODE_KEY, 'true');
+      setRole('super_admin');
+      toast({
+        title: "Mode administrateur forcé activé",
+        description: "Contournement des vérifications de sécurité pour l'administrateur spécial."
+      });
+      return true;
+    }
+    return false;
+  }, [isSpecialAdmin, toast]);
+  
+  // Role clearing on logout
   const clearRole = useCallback(() => {
     setRole(null);
     setIsLoading(false);
     setHasTriedEdgeFunction(false);
+    setHasTriedDirectRepair(false);
   }, []);
 
-  // Application locale du rôle super_admin pour l'administrateur spécial
+  // Check URL for admin force parameter (for emergency access)
+  useEffect(() => {
+    if (isSpecialAdmin) {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('forceAdmin') === 'true') {
+        enableForcedAdminMode();
+      }
+    }
+  }, [isSpecialAdmin, enableForcedAdminMode]);
+
+  // Automatically apply special admin role for the designated user or forced mode
   const applySpecialAdminRole = useCallback(() => {
     if (isSpecialAdmin || isForcedAdminMode()) {
-      console.log("Application du rôle super_admin localement");
+      console.log("Applying super_admin role locally for special admin or forced mode");
       setRole('super_admin');
       return true;
     }
     return false;
   }, [isSpecialAdmin, isForcedAdminMode]);
 
-  // Mise à jour du rôle dans la base de données via l'API admin-bypass
+  // Diagnostic function to help troubleshoot role issues
   const diagnosticRole = useCallback(async (): Promise<any> => {
     if (!user) return null;
     
     try {
-      console.log("Diagnostic de rôle via admin-bypass");
+      console.log("Running role diagnostic via admin-bypass");
       const { data, error } = await supabase.functions.invoke("admin-bypass", {
         body: { action: "diagnostic" }
       });
       
       if (error) {
-        console.error("Erreur lors du diagnostic:", error);
+        console.error("Diagnostic error:", error);
         return null;
       }
       
       return data;
     } catch (err) {
-      console.error("Exception lors du diagnostic:", err);
+      console.error("Exception during diagnostic:", err);
       return null;
     }
   }, [user]);
 
-  // Méthode de secours avec Edge Function
+  // Emergency repair method using Edge Function
   const ensureRoleWithEdgeFunction = useCallback(async () => {
     if (!user || hasTriedEdgeFunction) return false;
     
     setHasTriedEdgeFunction(true);
     try {
-      console.log("Tentative de définir le rôle via Edge Function pour l'administrateur spécial");
+      console.log("Attempting to set role via Edge Function for special admin");
       
       const { data, error } = await supabase.functions.invoke("set-admin-role", {
         body: { 
@@ -82,20 +108,49 @@ export const useUserRole = () => {
       });
       
       if (error) {
-        console.error("Erreur de fonction Edge:", error);
+        console.error("Edge function error:", error);
         return false;
       }
       
-      console.log("Réponse de la fonction Edge:", data);
+      console.log("Edge function response:", data);
       return data?.success || false;
     } catch (err) {
-      console.error("Erreur de fonction Edge (catch):", err);
+      console.error("Edge function error (catch):", err);
       return false;
     }
   }, [user, hasTriedEdgeFunction]);
 
-  // Fonction pour rafraîchir manuellement le rôle
-  const refreshRole = useCallback(async () => {
+  // Direct database repair attempt (last resort)
+  const ensureRoleDirectly = useCallback(async () => {
+    if (!user || !isSpecialAdmin || hasTriedDirectRepair) return false;
+    
+    setHasTriedDirectRepair(true);
+    try {
+      console.log("Attempting direct database repair for special admin");
+      
+      // Attempt using the admin-bypass function
+      const { data, error } = await supabase.functions.invoke("admin-bypass", {
+        body: { 
+          action: "force_super_admin_role",
+          targetUserId: user.id
+        }
+      });
+      
+      if (error) {
+        console.error("Direct repair error:", error);
+        return false;
+      }
+      
+      console.log("Direct repair response:", data);
+      return data?.success || false;
+    } catch (err) {
+      console.error("Direct repair error (catch):", err);
+      return false;
+    }
+  }, [user, isSpecialAdmin, hasTriedDirectRepair]);
+
+  // Manual refresh function
+  const refreshRole = useCallback(async (forceRepair = false) => {
     if (!user) {
       clearRole();
       return;
@@ -103,7 +158,7 @@ export const useUserRole = () => {
     
     const now = Date.now();
     if (now - lastRefreshTime < 1000) {
-      console.log("Rafraîchissement limité pour éviter les boucles");
+      console.log("Refresh rate limited to avoid loops");
       return;
     }
     
@@ -111,29 +166,33 @@ export const useUserRole = () => {
     setLastRefreshTime(now);
     
     try {
-      console.log("Rafraîchissement du rôle pour", user.email);
+      console.log("Refreshing role for", user.email);
       
-      // Vérifier d'abord le mode admin forcé
+      // Check for forced admin mode first (highest priority)
       if (isForcedAdminMode()) {
-        console.log("Mode admin forcé détecté - attribution du rôle super_admin localement");
+        console.log("Forced admin mode detected - setting super_admin role locally");
         setRole('super_admin');
         setIsLoading(false);
         return;
       }
       
-      // Pour l'utilisateur spécial, toujours définir le rôle super_admin en local d'abord
+      // Special admin always gets the super_admin role locally first
       if (isSpecialAdmin) {
         applySpecialAdminRole();
         
-        if (!hasTriedEdgeFunction) {
-          await ensureRoleWithEdgeFunction().catch(console.error);
+        if (forceRepair && !hasTriedEdgeFunction) {
+          await ensureRoleWithEdgeFunction();
+        }
+        
+        if (forceRepair && !hasTriedDirectRepair) {
+          await ensureRoleDirectly();
         }
         
         setIsLoading(false);
         return;
       }
       
-      // Pour les utilisateurs normaux, essayer d'obtenir le rôle de la base de données
+      // For regular users, try to get the role from the database
       try {
         const { data: userRole, error } = await supabase
           .from('user_roles')
@@ -142,29 +201,28 @@ export const useUserRole = () => {
           .maybeSingle();
         
         if (error) {
-          console.error("Erreur lors de la récupération du rôle:", error);
+          console.error("Error fetching role:", error);
           setRole(null);
         } else {
-          console.log("Rôle récupéré:", userRole?.role, "Dernière mise à jour:", userRole?.updated_at);
+          console.log("Role fetched:", userRole?.role, "Last updated:", userRole?.updated_at);
           setRole(userRole?.role || null);
         }
       } catch (error) {
-        console.error("Erreur lors du rafraîchissement du rôle:", error);
+        console.error("Error refreshing role:", error);
         setRole(null);
       }
     } finally {
       setIsLoading(false);
     }
-  }, [user, isSpecialAdmin, applySpecialAdminRole, clearRole, ensureRoleWithEdgeFunction, hasTriedEdgeFunction, lastRefreshTime, isForcedAdminMode]);
+  }, [user, isSpecialAdmin, applySpecialAdminRole, clearRole, ensureRoleWithEdgeFunction, hasTriedEdgeFunction, hasTriedDirectRepair, ensureRoleDirectly, lastRefreshTime, isForcedAdminMode]);
 
-  // Chargement du rôle lors du changement d'utilisateur
+  // Load role on user change
   useEffect(() => {
     refreshRole();
   }, [user, refreshRole]);
 
-  // Forcer le rôle super_admin pour l'utilisateur spécial
+  // Force super_admin role for special admin or forced mode
   useEffect(() => {
-    // Si c'est l'administrateur spécial ou mode forcé et pas de rôle ou rôle != super_admin
     if ((isSpecialAdmin || isForcedAdminMode()) && (!role || role !== 'super_admin')) {
       applySpecialAdminRole();
     }
@@ -192,6 +250,7 @@ export const useUserRole = () => {
     isSpecialAdmin,
     ensureRoleWithEdgeFunction,
     isForcedAdminMode: isForcedAdminMode(),
+    enableForcedAdminMode,
     diagnosticRole
   };
 };

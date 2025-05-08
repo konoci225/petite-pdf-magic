@@ -18,6 +18,30 @@ export const supabase = createClient<Database>(
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false, // Disable session detection in URL to avoid potential issues
+      flowType: 'pkce' // Use PKCE flow for enhanced security
+    },
+    global: {
+      headers: {
+        'x-client-info': 'lovable-admin-app'
+      }
     }
   }
 );
+
+// Helper function to clean up auth state (prevent auth limbo)
+export const cleanupAuthState = () => {
+  // Remove standard auth tokens
+  localStorage.removeItem('supabase.auth.token');
+  // Remove all Supabase auth keys from localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  // Remove from sessionStorage if in use
+  Object.keys(sessionStorage || {}).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      sessionStorage.removeItem(key);
+    }
+  });
+};

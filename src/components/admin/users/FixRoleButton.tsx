@@ -18,7 +18,7 @@ const FixRoleButton = ({
 }: FixRoleButtonProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { refreshRole } = useUserRole();
+  const { refreshRole, isSpecialAdmin, enableForcedAdminMode } = useUserRole();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [attempts, setAttempts] = useState(0);
@@ -40,7 +40,7 @@ const FixRoleButton = ({
     
     try {
       // MÉTHODE 1: Call the edge function first
-      console.log("Appel de la fonction edge 'set-admin-role'");
+      console.log("Calling set-admin-role edge function");
       const { data: edgeData, error: edgeError } = await supabase.functions.invoke(
         "set-admin-role", 
         { 
@@ -53,15 +53,15 @@ const FixRoleButton = ({
       );
 
       if (edgeError) {
-        console.error("Erreur fonction edge:", edgeError);
-        setErrorMessage(`Erreur fonction edge: ${edgeError.message}`);
+        console.error("Edge function error:", edgeError);
+        setErrorMessage(`Edge function error: ${edgeError.message}`);
       }
 
-      console.log("Réponse de la fonction edge:", edgeData);
+      console.log("Edge function response:", edgeData);
 
       if (edgeData?.success) {
         // Refresh role to apply the changes
-        await refreshRole();
+        await refreshRole(true);
         
         setIsSuccess(true);
         
@@ -80,7 +80,7 @@ const FixRoleButton = ({
       }
       
       // MÉTHODE 2: Try using admin-bypass function
-      console.log("Tentative avec la fonction admin-bypass");
+      console.log("Trying admin-bypass function");
       const { data: bypassData, error: bypassError } = await supabase.functions.invoke(
         "admin-bypass",
         {
@@ -92,16 +92,15 @@ const FixRoleButton = ({
       );
       
       if (bypassError) {
-        console.error("Erreur admin-bypass:", bypassError);
-        setErrorMessage(`Erreur admin-bypass: ${bypassError.message}`);
-        throw new Error(bypassError.message);
+        console.error("Admin-bypass error:", bypassError);
+        setErrorMessage(`Admin-bypass error: ${bypassError.message}`);
       }
       
-      console.log("Réponse de admin-bypass:", bypassData);
+      console.log("Admin-bypass response:", bypassData);
       
       if (bypassData?.success) {
         // Refresh role to apply the changes
-        await refreshRole();
+        await refreshRole(true);
         
         setIsSuccess(true);
         
@@ -118,23 +117,27 @@ const FixRoleButton = ({
         return;
       }
       
-      // MÉTHODE 3: Dernier recours - essayer de définir manuellement le localStorage
-      console.log("Tentative avec forçage manuel du mode admin");
-      localStorage.setItem('app_forced_admin_mode', 'true');
-      
-      toast({
-        title: "Mode administrateur forcé activé",
-        description: "Un mode de secours a été activé. Veuillez actualiser la page.",
-        variant: "default",
-      });
-      
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
-      
+      // MÉTHODE 3: Last resort - manually enable forced admin mode
+      if (isSpecialAdmin) {
+        console.log("Trying forced admin mode");
+        enableForcedAdminMode();
+        
+        setIsSuccess(true);
+        toast({
+          title: "Mode administrateur forcé activé",
+          description: "Un mode de secours a été activé pour vous donner accès.",
+        });
+        
+        // Force page reload
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error("Aucune méthode de réparation n'a fonctionné");
+      }
     } catch (error: any) {
-      console.error("Erreur lors de la réparation du rôle:", error);
-      setErrorMessage(`Erreur: ${error.message}`);
+      console.error("Error during role repair:", error);
+      setErrorMessage(`Error: ${error.message}`);
       toast({
         title: "Erreur lors de la réparation",
         description: error.message,
@@ -161,18 +164,17 @@ const FixRoleButton = ({
         ) : (
           <Shield className="mr-2 h-4 w-4" />
         )}
-        {isSuccess 
-          ? "Privilèges réparés" 
-          : attempts > 0 
-            ? `Réparer les autorisations (${attempts})` 
-            : "Réparer les autorisations"
-        }
+        {isLoading ? "Réparation en cours..." : isSuccess ? "Réparé avec succès" : "Réparer les autorisations"}
       </Button>
       
       {errorMessage && (
-        <div className="text-xs text-red-500 flex items-center mt-1">
-          <AlertTriangle className="h-3 w-3 mr-1" />
-          {errorMessage}
+        <div className="text-xs bg-yellow-50 border border-yellow-200 text-yellow-800 p-2 rounded">
+          <div className="flex items-center mb-1">
+            <AlertTriangle className="h-3 w-3 mr-1" />
+            <span className="font-medium">Erreur détectée</span>
+          </div>
+          <p>{errorMessage}</p>
+          <p className="mt-1 text-xs">Essai {attempts}/3</p>
         </div>
       )}
     </div>

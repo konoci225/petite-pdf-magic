@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Fonction admin-bypass appelée")
+    console.log("Function admin-bypass called")
     
     // Create a Supabase client with SERVICE ROLE KEY
     const supabaseClient = createClient(
@@ -31,7 +31,8 @@ serve(async (req) => {
     }
 
     // Check if this is the special admin user
-    if (!user || user.email !== 'konointer@gmail.com') {
+    const isSpecialAdmin = user?.email === 'konointer@gmail.com'
+    if (!user || (!isSpecialAdmin && user.email !== 'konointer@gmail.com')) {
       throw new Error('Unauthorized: Only the special admin can use this function')
     }
 
@@ -40,31 +41,65 @@ serve(async (req) => {
 
     // Handle different actions
     if (action === 'force_super_admin_role') {
-      console.log("Action force_super_admin_role demandée pour", targetUserId || user.id)
+      console.log("Action force_super_admin_role requested for", targetUserId || user.id)
       
-      // Use the admin-powered client to set the user's role directly, bypassing RLS
-      const { error } = await supabaseClient
-        .from('user_roles')
-        .upsert(
-          { user_id: targetUserId || user.id, role: 'super_admin', updated_at: new Date().toISOString() },
-          { onConflict: 'user_id' }
+      try {
+        // First try to use the RPC function for better error handling
+        const { data: rpcData, error: rpcError } = await supabaseClient.rpc(
+          'force_set_super_admin_role',
+          { target_user_id: targetUserId || user.id }
         )
-      
-      if (error) {
-        console.error("Erreur lors de l'upsert du rôle:", error)
-        throw error
+        
+        if (rpcError) {
+          console.error("RPC function error:", rpcError)
+          // Fallback to direct upsert if RPC fails
+          const { error } = await supabaseClient
+            .from('user_roles')
+            .upsert(
+              { 
+                user_id: targetUserId || user.id, 
+                role: 'super_admin', 
+                updated_at: new Date().toISOString() 
+              },
+              { onConflict: 'user_id' }
+            )
+          
+          if (error) {
+            console.error("Upsert error:", error)
+            throw error
+          }
+        }
+        
+        // Check if the role was set correctly
+        const { data: roleCheck, error: checkError } = await supabaseClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", targetUserId || user.id)
+          .single();
+          
+        if (checkError) {
+          console.error("Role check error:", checkError)
+          throw checkError
+        }
+        
+        console.log("Role set successfully for", targetUserId || user.id, "Current role:", roleCheck?.role)
+        
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: 'Super admin role applied successfully',
+            current_role: roleCheck?.role
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      } catch (innerError) {
+        console.error("Inner error:", innerError)
+        throw innerError
       }
-      
-      console.log("Rôle défini avec succès pour", targetUserId || user.id)
-      
-      return new Response(
-        JSON.stringify({ success: true, message: 'Super admin role applied successfully' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
     } 
     else if (action === 'get_user_role') {
       const userId = targetUserId || user.id
-      console.log("Action get_user_role demandée pour", userId)
+      console.log("Action get_user_role requested for", userId)
       
       const { data: roleData, error: roleError } = await supabaseClient
         .from('user_roles')
@@ -73,7 +108,7 @@ serve(async (req) => {
         .single()
       
       if (roleError) {
-        console.error("Erreur lors de la récupération du rôle:", roleError)
+        console.error("Error fetching role:", roleError)
         throw roleError
       }
       
@@ -88,25 +123,45 @@ serve(async (req) => {
       )
     }
     else if (action === 'diagnostic') {
-      console.log("Action de diagnostic demandée")
+      console.log("Diagnostic action requested")
       
-      // Récupérer les politiques RLS pour la table user_roles
+      // Get RLS policies for the user_roles table
       const { data: policies, error: policiesError } = await supabaseClient
         .rpc('get_policies_for_table', { table_name: 'user_roles' })
       
-      // Récupérer toutes les tables avec RLS activée
+      // Get policies for modules table
+      const { data: modulesPolicies, error: modulesPoliciesError } = await supabaseClient
+        .rpc('get_policies_for_table', { table_name: 'modules' })
+      
+      // Get all tables with RLS enabled
       const { data: rlsTables, error: rlsError } = await supabaseClient
         .from('information_schema.tables')
         .select('table_name')
         .eq('table_schema', 'public')
         .filter('has_row_level_security', 'eq', true)
       
-      // Vérifier le rôle actuel
+      // Check current role
       const { data: roleData, error: roleError } = await supabaseClient
         .from('user_roles')
         .select('role, updated_at')
         .eq('user_id', user.id)
         .single()
+        
+      // Try to access modules table directly to check permissions
+      const { data: modulesData, error: modulesError } = await supabaseClient
+        .from('modules')
+        .select('*')
+        .limit(1)
+        
+      // Attempt to get default modules
+      let defaultModulesResult = null
+      let defaultModulesError = null
+      try {
+        const result = await supabaseClient.rpc('create_default_modules')
+        defaultModulesResult = { success: true, data: result.data }
+      } catch (error) {
+        defaultModulesError = { message: error.message, details: error }
+      }
       
       return new Response(
         JSON.stringify({
@@ -117,11 +172,19 @@ serve(async (req) => {
             role: roleData?.role || null,
             role_updated_at: roleData?.updated_at || null
           },
+          permissions: {
+            can_access_modules: modulesError ? false : true,
+            modules_access_error: modulesError ? modulesError.message : null,
+            default_modules_result: defaultModulesResult,
+            default_modules_error: defaultModulesError
+          },
           system: {
             rls_tables: rlsTables || [],
-            policies: policies || [],
+            user_roles_policies: policies || [],
+            modules_policies: modulesPolicies || [],
             errors: {
               policies: policiesError ? policiesError.message : null,
+              modules_policies: modulesPoliciesError ? modulesPoliciesError.message : null,
               rls: rlsError ? rlsError.message : null,
               role: roleError ? roleError.message : null
             }
@@ -136,7 +199,11 @@ serve(async (req) => {
     console.error('Admin bypass function error:', error)
     
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        stack: error.stack,
+        name: error.name
+      }),
       { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

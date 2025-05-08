@@ -14,17 +14,17 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Fonction Edge set-admin-role démarrée")
+    console.log("Edge Function set-admin-role started")
     
     // Create a Supabase client with SERVICE ROLE KEY (bypass RLS)
     const supabaseUrl = Deno.env.get('SUPABASE_URL') || ''
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
     
     if (!supabaseServiceKey) {
-      throw new Error('SUPABASE_SERVICE_ROLE_KEY manquante')
+      throw new Error('SUPABASE_SERVICE_ROLE_KEY missing')
     }
     
-    console.log("Création du client Supabase avec clé de service")
+    console.log("Creating Supabase client with service key")
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
     
     // Get the request data
@@ -34,7 +34,7 @@ serve(async (req) => {
       throw new Error('Either email or userId is required')
     }
 
-    console.log(`Tentative de définir le rôle super_admin avec ${email ? 'email: ' + email : 'userId: ' + userId}`)
+    console.log(`Attempting to set super_admin role with ${email ? 'email: ' + email : 'userId: ' + userId}`)
     
     let targetUserId = userId
     let targetEmail = email
@@ -50,23 +50,23 @@ serve(async (req) => {
         const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserByEmail(email)
         
         if (userError || !userData?.user) {
-          console.error(`Erreur ou utilisateur non trouvé pour l'email ${email}:`, userError)
+          console.error(`Error or user not found for email ${email}:`, userError)
           // Try to get all users to find a match (fallback)
           const { data: users } = await supabaseAdmin.auth.admin.listUsers()
           const matchedUser = users?.users?.find(u => u.email === email)
           
           if (matchedUser) {
-            console.log(`Utilisateur trouvé par liste: ${matchedUser.id}`)
+            console.log(`User found by list: ${matchedUser.id}`)
             targetUserId = matchedUser.id
           } else {
             throw new Error(`No user found with email: ${email}`)
           }
         } else {
-          console.log(`Utilisateur trouvé: ${userData.user.id}`)
+          console.log(`User found: ${userData.user.id}`)
           targetUserId = userData.user.id
         }
       } catch (error) {
-        console.error("Erreur lors de la recherche d'utilisateur par email:", error)
+        console.error("Error looking up user by email:", error)
         throw error
       }
     }
@@ -75,8 +75,8 @@ serve(async (req) => {
       throw new Error('Could not determine user ID')
     }
     
-    // MÉTHODE 1: Insert directs pour super_admin pour konointer@gmail.com
-    console.log("MÉTHODE 1: Insertion directe dans user_roles")
+    // METHOD 1: Direct inserts for super_admin for konointer@gmail.com
+    console.log("METHOD 1: Direct insertion in user_roles")
     try {
       const { error: insertError } = await supabaseAdmin
         .from('user_roles')
@@ -87,18 +87,18 @@ serve(async (req) => {
         }, { onConflict: 'user_id' })
       
       if (insertError) {
-        console.error("Erreur d'insertion:", insertError)
+        console.error("Insert error:", insertError)
       } else {
-        console.log("Succès avec l'insertion directe")
+        console.log("Success with direct insertion")
         success = true
       }
     } catch (e) {
-      console.error("Exception lors de l'insertion:", e)
+      console.error("Exception during insertion:", e)
     }
     
-    // MÉTHODE 2: Fonction RPC
+    // METHOD 2: RPC Function
     if (!success) {
-      console.log("MÉTHODE 2: Tentative d'utiliser la fonction RPC force_set_super_admin_role")
+      console.log("METHOD 2: Trying to use force_set_super_admin_role RPC")
       try {
         const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc(
           'force_set_super_admin_role',
@@ -106,17 +106,44 @@ serve(async (req) => {
         )
         
         if (rpcError) {
-          console.error('Erreur avec la méthode RPC:', rpcError)
+          console.error('RPC method error:', rpcError)
         } else {
-          console.log('Succès avec la fonction RPC', rpcResult)
+          console.log('Success with RPC function', rpcResult)
           success = true
         }
       } catch (e) {
-        console.error("Exception lors de l'appel RPC:", e)
+        console.error("Exception during RPC call:", e)
       }
     }
     
-    // Vérification finale
+    // METHOD 3: Raw SQL as a last resort for konointer@gmail.com
+    if (!success && isSpecialAdmin) {
+      console.log("METHOD 3: Trying direct SQL for konointer@gmail.com")
+      try {
+        const { error: sqlError } = await supabaseAdmin.rpc(
+          'execute_sql', 
+          { 
+            sql_query: `
+              INSERT INTO public.user_roles (user_id, role, updated_at)
+              VALUES ('${targetUserId}', 'super_admin', now())
+              ON CONFLICT (user_id)
+              DO UPDATE SET role = 'super_admin', updated_at = now();
+            `
+          }
+        )
+        
+        if (sqlError) {
+          console.error('SQL method error:', sqlError)
+        } else {
+          console.log('Success with SQL method')
+          success = true
+        }
+      } catch (e) {
+        console.error("Exception during SQL execution:", e)
+      }
+    }
+    
+    // Final check
     const { data: checkRole, error: checkError } = await supabaseAdmin
       .from('user_roles')
       .select('role, updated_at')
@@ -124,9 +151,9 @@ serve(async (req) => {
       .single()
       
     if (checkError) {
-      console.error("Erreur de vérification du rôle:", checkError)
+      console.error("Error checking role:", checkError)
     } else {
-      console.log("Rôle actuel:", checkRole?.role)
+      console.log("Current role:", checkRole?.role)
       success = checkRole?.role === 'super_admin'
     }
     

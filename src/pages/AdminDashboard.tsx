@@ -16,13 +16,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import FixRoleButton from "@/components/admin/users/FixRoleButton";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ShieldCheck, Info } from "lucide-react";
+import { AlertCircle, ShieldCheck, Info, RefreshCw } from "lucide-react";
 
 // Storage key for forced admin mode
 const FORCED_ADMIN_MODE_KEY = 'app_forced_admin_mode';
+const SPECIAL_ADMIN_EMAIL = 'konointer@gmail.com';
 
 const AdminDashboard = () => {
-  const { role, isLoading: roleLoading, refreshRole, isSpecialAdmin, diagnosticRole } = useUserRole();
+  const { role, isLoading: roleLoading, refreshRole, isSpecialAdmin, diagnosticRole, enableForcedAdminMode } = useUserRole();
   const { user } = useAuth();
   const { toast } = useToast();
   const {
@@ -46,16 +47,17 @@ const AdminDashboard = () => {
   });
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
+  const [isAdminRepairOpen, setIsAdminRepairOpen] = useState(true);
   const defaultTab = searchParams.get('tab') || 'modules';
   
-  // Détection explicite de l'email spécial pour le contournement
-  const isKonointer = user?.email === "konointer@gmail.com";
+  // Explicit detection of special email for bypass
+  const isKonointer = user?.email === SPECIAL_ADMIN_EMAIL;
 
   console.log("AdminDashboard - Current user:", user?.id, "Email:", user?.email, "Role:", role, "isSpecialAdmin:", isSpecialAdmin);
   console.log("tablesAccessible:", tablesAccessible, "isSpecialAdminAccess:", isSpecialAdminAccess, "forcedAdminMode:", forcedAdminMode);
 
-  // Fonction pour activer le mode admin forcé pour konointer@gmail.com
-  const enableForcedAdminMode = () => {
+  // Enable forced admin mode for special admin
+  const handleEnableForcedAdminMode = () => {
     if (isKonointer) {
       localStorage.setItem(FORCED_ADMIN_MODE_KEY, 'true');
       setForcedAdminMode(true);
@@ -64,15 +66,15 @@ const AdminDashboard = () => {
         description: "Contournement des vérifications de sécurité pour l'administrateur spécial.",
       });
       
-      // Attendez un court instant avant de rafraîchir
+      // Reload after short delay
       setTimeout(() => {
         window.location.reload();
       }, 100);
     }
   };
   
-  // Fonction pour désactiver le mode admin forcé
-  const disableForcedAdminMode = () => {
+  // Disable forced admin mode
+  const handleDisableForcedAdminMode = () => {
     localStorage.removeItem(FORCED_ADMIN_MODE_KEY);
     setForcedAdminMode(false);
     toast({
@@ -84,59 +86,85 @@ const AdminDashboard = () => {
     window.location.reload();
   };
 
+  // Run diagnostic for better troubleshooting
   const runAdminDiagnostic = async () => {
     if (isKonointer) {
       try {
+        setDiagnosticData(null);  // Clear previous data
         const data = await diagnosticRole();
         setDiagnosticData(data);
         setIsDiagnosticOpen(true);
+        
+        if (data) {
+          toast({
+            title: "Diagnostic terminé",
+            description: `État du rôle: ${data.role || 'Non défini'}`,
+          });
+        }
       } catch (error) {
-        console.error("Erreur de diagnostic:", error);
+        console.error("Diagnostic error:", error);
+        toast({
+          title: "Erreur de diagnostic",
+          description: "Impossible d'exécuter le diagnostic complet",
+          variant: "destructive",
+        });
       }
     }
   };
 
-  // Fonction simplifiée pour initialiser les tables si nécessaire
+  // Initialize modules if needed
   const initializeAdminAccess = async () => {
     if (!user || isInitializing) return;
     
     setIsInitializing(true);
     try {
-      console.log("Tentative d'initialisation des tables administrateur...");
+      console.log("Attempting to initialize admin tables...");
       
-      // Essayer d'initialiser les modules par défaut
+      // Try to initialize default modules
       const { error } = await supabase.rpc('create_default_modules' as any);
       
       if (error) {
-        console.warn("Erreur lors de l'initialisation des modules:", error);
+        console.warn("Error initializing modules:", error);
+        toast({
+          title: "Erreur d'initialisation",
+          description: `Impossible de créer les modules par défaut: ${error.message}`,
+          variant: "destructive",
+        });
       } else {
-        console.log("Initialisation des modules réussie");
+        console.log("Module initialization successful");
         toast({
           title: "Initialisation réussie",
           description: "Les modules par défaut ont été créés."
         });
       }
-    } catch (error) {
-      console.error("Erreur lors de l'initialisation:", error);
+    } catch (error: any) {
+      console.error("Error during initialization:", error);
+      toast({
+        title: "Erreur d'initialisation",
+        description: `${error.message}`,
+        variant: "destructive",
+      });
     } finally {
       setIsInitializing(false);
     }
   };
 
-  // Check for forceAdmin param and update localStorage 
+  // Update forcedAdminMode from URL parameter
   useEffect(() => {
     const forceParam = searchParams.get('forceAdmin');
     if (forceParam === 'true' && isKonointer) {
       localStorage.setItem(FORCED_ADMIN_MODE_KEY, 'true');
       setForcedAdminMode(true);
+      // Refresh role to apply changes
+      refreshRole(true);
     }
-  }, [searchParams, isKonointer]);
+  }, [searchParams, isKonointer, refreshRole]);
 
-  // Attempt to repair admin role using edge function on component mount
+  // Auto-repair function on component mount
   useEffect(() => {
     const repairAdminRole = async () => {
       if (isKonointer && role !== "super_admin") {
-        console.log("Réparation automatique du rôle via Edge Function...");
+        console.log("Automatic role repair via Edge Function...");
         
         try {
           const { data, error } = await supabase.functions.invoke("set-admin-role", {
@@ -147,38 +175,47 @@ const AdminDashboard = () => {
             }
           });
           
-          console.log("Réponse de la fonction Edge pour réparation:", data);
+          console.log("Edge function response for repair:", data);
           
           if (data?.success) {
-            await refreshRole();
+            await refreshRole(true);
             toast({
               title: "Rôle réparé",
               description: "Le rôle d'administrateur a été attribué avec succès.",
             });
+          } else if (error) {
+            console.error("Auto-repair error:", error);
+            // Fallback to forced admin mode
+            if (!forcedAdminMode) {
+              handleEnableForcedAdminMode();
+            }
           }
         } catch (error) {
-          console.error("Erreur lors de la réparation automatique:", error);
+          console.error("Error during automatic repair:", error);
+          // Fallback to forced admin mode
+          if (!forcedAdminMode) {
+            handleEnableForcedAdminMode();
+          }
         }
       }
     };
     
     repairAdminRole();
-  }, [isKonointer, role, user, refreshRole]);
+  }, [isKonointer, role, user, refreshRole, forcedAdminMode]);
 
-  // Tenter d'initialiser les tables au chargement
+  // Initialize tables on load
   useEffect(() => {
     if (user && (isSpecialAdmin || role === "super_admin" || forcedAdminMode)) {
       initializeAdminAccess();
     }
   }, [user, role, isSpecialAdmin, forcedAdminMode]);
 
-  // Afficher l'écran de chargement quand le rôle est en cours de chargement
+  // Show loading screen when role is loading
   if (roleLoading) {
-    console.log("Chargement du rôle en cours...");
     return <AdminDashboardLoader />;
   }
 
-  // Contournement de secours: Si konointer@gmail.com mais sans accès admin
+  // Fallback for special admin: If konointer@gmail.com but no admin access
   if (isKonointer && role !== "super_admin" && !forcedAdminMode) {
     return (
       <Layout>
@@ -207,7 +244,7 @@ const AdminDashboard = () => {
                   même si votre rôle n'est pas correctement configuré dans la base de données.
                 </p>
                 <Button 
-                  onClick={enableForcedAdminMode} 
+                  onClick={handleEnableForcedAdminMode} 
                   variant="outline"
                   size="lg"
                   className="bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
@@ -258,22 +295,20 @@ const AdminDashboard = () => {
     );
   }
 
-  // Mode administrateur forcé pour konointer@gmail.com
+  // Access control: Forced mode, special admin, or super_admin role
   const hasAdminAccess = forcedAdminMode || isSpecialAdmin || isSpecialAdminAccess || role === "super_admin";
   
-  // Si l'utilisateur n'a pas d'accès administrateur, redirection
+  // If no admin access, redirect to dashboard
   if (!hasAdminAccess) {
-    console.log("L'utilisateur n'a pas d'accès administrateur, redirection...");
     return <Navigate to="/dashboard" />;
   }
 
-  // Écran de chargement pendant la vérification des tables
+  // Loading screen while checking tables
   if (!forcedAdminMode && isLoading) {
-    console.log("Vérification de l'accès aux tables...");
     return <AdminDashboardLoader />;
   }
 
-  // Afficher une erreur si les tables ne sont pas accessibles (sauf en mode forcé ou admin spécial)
+  // Display error if tables aren't accessible (unless forced mode or special admin)
   if (!forcedAdminMode && !tablesAccessible && !isSpecialAdmin && !isSpecialAdminAccess) {
     return (
       <Layout>
@@ -300,13 +335,44 @@ const AdminDashboard = () => {
               <p className="text-sm text-amber-700">Les vérifications de sécurité sont contournées pour l'accès administrateur.</p>
             </div>
             <Button 
-              onClick={disableForcedAdminMode}
+              onClick={handleDisableForcedAdminMode}
               variant="outline"
               size="sm"
               className="border-amber-300 text-amber-800 hover:bg-amber-100"
             >
               Désactiver le mode forcé
             </Button>
+          </div>
+        )}
+        
+        {isKonointer && !forcedAdminMode && (
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-md p-4 flex justify-between items-center">
+            <div>
+              <h3 className="font-medium text-blue-800">Vous êtes connecté en tant qu'administrateur spécial</h3>
+              <p className="text-sm text-blue-700">
+                Si vous rencontrez des problèmes d'accès, utilisez le mode forcé ou le diagnostic.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                onClick={runAdminDiagnostic}
+                variant="outline"
+                size="sm"
+                className="border-blue-300 text-blue-800 hover:bg-blue-100"
+              >
+                <Info className="mr-2 h-4 w-4" />
+                Diagnostic
+              </Button>
+              <Button 
+                onClick={handleEnableForcedAdminMode}
+                variant="outline"
+                size="sm"
+                className="border-amber-300 text-amber-800 hover:bg-amber-100"
+              >
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Activer mode forcé
+              </Button>
+            </div>
           </div>
         )}
         
@@ -320,6 +386,20 @@ const AdminDashboard = () => {
             >
               <Info className="h-3.5 w-3.5 mr-1" />
               Diagnostic système
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={initializeAdminAccess}
+              className="text-green-600 text-xs"
+              disabled={isInitializing}
+            >
+              {isInitializing ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 mr-1" />
+              )}
+              Initialiser modules
             </Button>
           </div>
         )}
