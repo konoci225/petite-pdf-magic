@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import Layout from "@/components/layout/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import FixRoleButton from "@/components/admin/users/FixRoleButton";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ShieldCheck, Info, RefreshCw } from "lucide-react";
+import { AlertCircle, ShieldCheck, Info, RefreshCw, Loader2 } from "lucide-react";
 
 // Storage key for forced admin mode
 const FORCED_ADMIN_MODE_KEY = 'app_forced_admin_mode';
