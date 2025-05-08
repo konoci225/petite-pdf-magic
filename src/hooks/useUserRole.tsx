@@ -4,12 +4,9 @@ import { useAuth } from "@/providers/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types"; 
 import { useToast } from "@/hooks/use-toast";
+import { useAdminModeService, SPECIAL_ADMIN_EMAIL } from "@/services/AdminModeService";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
-
-// Key for the mode admin forcé
-const FORCED_ADMIN_MODE_KEY = 'app_forced_admin_mode';
-const SPECIAL_ADMIN_EMAIL = 'konointer@gmail.com';
 
 export const useUserRole = () => {
   const { user } = useAuth();
@@ -23,23 +20,11 @@ export const useUserRole = () => {
   // Special admin detection - very important for bypass mechanisms
   const isSpecialAdmin = user?.email === SPECIAL_ADMIN_EMAIL;
   
-  // Check for forced admin mode
-  const isForcedAdminMode = useCallback(() => {
-    return localStorage.getItem(FORCED_ADMIN_MODE_KEY) === 'true';
-  }, []);
-  
-  const enableForcedAdminMode = useCallback(() => {
-    if (isSpecialAdmin) {
-      localStorage.setItem(FORCED_ADMIN_MODE_KEY, 'true');
-      setRole('super_admin');
-      toast({
-        title: "Mode administrateur forcé activé",
-        description: "Contournement des vérifications de sécurité pour l'administrateur spécial."
-      });
-      return true;
-    }
-    return false;
-  }, [isSpecialAdmin, toast]);
+  // Get admin mode service
+  const { 
+    forcedAdminMode: isForcedAdminMode, 
+    enableForcedAdminMode 
+  } = useAdminModeService(user?.email);
   
   // Role clearing on logout
   const clearRole = useCallback(() => {
@@ -49,19 +34,9 @@ export const useUserRole = () => {
     setHasTriedDirectRepair(false);
   }, []);
 
-  // Check URL for admin force parameter (for emergency access)
-  useEffect(() => {
-    if (isSpecialAdmin) {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('forceAdmin') === 'true') {
-        enableForcedAdminMode();
-      }
-    }
-  }, [isSpecialAdmin, enableForcedAdminMode]);
-
   // Automatically apply special admin role for the designated user or forced mode
   const applySpecialAdminRole = useCallback(() => {
-    if (isSpecialAdmin || isForcedAdminMode()) {
+    if (isSpecialAdmin || isForcedAdminMode) {
       console.log("Applying super_admin role locally for special admin or forced mode");
       setRole('super_admin');
       return true;
@@ -169,7 +144,7 @@ export const useUserRole = () => {
       console.log("Refreshing role for", user.email);
       
       // Check for forced admin mode first (highest priority)
-      if (isForcedAdminMode()) {
+      if (isForcedAdminMode) {
         console.log("Forced admin mode detected - setting super_admin role locally");
         setRole('super_admin');
         setIsLoading(false);
@@ -214,7 +189,18 @@ export const useUserRole = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user, isSpecialAdmin, applySpecialAdminRole, clearRole, ensureRoleWithEdgeFunction, hasTriedEdgeFunction, hasTriedDirectRepair, ensureRoleDirectly, lastRefreshTime, isForcedAdminMode]);
+  }, [
+    user, 
+    isSpecialAdmin, 
+    applySpecialAdminRole, 
+    clearRole, 
+    ensureRoleWithEdgeFunction, 
+    hasTriedEdgeFunction, 
+    hasTriedDirectRepair, 
+    ensureRoleDirectly, 
+    lastRefreshTime, 
+    isForcedAdminMode
+  ]);
 
   // Load role on user change
   useEffect(() => {
@@ -223,24 +209,10 @@ export const useUserRole = () => {
 
   // Force super_admin role for special admin or forced mode
   useEffect(() => {
-    if ((isSpecialAdmin || isForcedAdminMode()) && (!role || role !== 'super_admin')) {
+    if ((isSpecialAdmin || isForcedAdminMode) && (!role || role !== 'super_admin')) {
       applySpecialAdminRole();
     }
   }, [isSpecialAdmin, role, applySpecialAdminRole, isForcedAdminMode]);
-
-  // Listen for forced admin mode changes
-  useEffect(() => {
-    const checkForcedMode = () => {
-      if (isForcedAdminMode() && role !== 'super_admin') {
-        setRole('super_admin');
-      }
-    };
-    
-    window.addEventListener('storage', checkForcedMode);
-    return () => {
-      window.removeEventListener('storage', checkForcedMode);
-    };
-  }, [role, isForcedAdminMode]);
 
   return { 
     role, 
@@ -249,7 +221,7 @@ export const useUserRole = () => {
     clearRole,
     isSpecialAdmin,
     ensureRoleWithEdgeFunction,
-    isForcedAdminMode: isForcedAdminMode(),
+    isForcedAdminMode,
     enableForcedAdminMode,
     diagnosticRole
   };
