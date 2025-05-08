@@ -27,3 +27,4 @@ verify_jwt = false
 
 [functions.admin-bypass]
 verify_jwt = true
+

@@ -16,13 +16,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import FixRoleButton from "@/components/admin/users/FixRoleButton";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, ShieldCheck } from "lucide-react";
+import { AlertCircle, ShieldCheck, Info } from "lucide-react";
 
 // Storage key for forced admin mode
 const FORCED_ADMIN_MODE_KEY = 'app_forced_admin_mode';
 
 const AdminDashboard = () => {
-  const { role, isLoading: roleLoading, refreshRole, isSpecialAdmin } = useUserRole();
+  const { role, isLoading: roleLoading, refreshRole, isSpecialAdmin, diagnosticRole } = useUserRole();
   const { user } = useAuth();
   const { toast } = useToast();
   const {
@@ -44,6 +44,8 @@ const AdminDashboard = () => {
     // Then check localStorage
     return localStorage.getItem(FORCED_ADMIN_MODE_KEY) === 'true';
   });
+  const [diagnosticData, setDiagnosticData] = useState<any>(null);
+  const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
   const defaultTab = searchParams.get('tab') || 'modules';
   
   // Détection explicite de l'email spécial pour le contournement
@@ -61,6 +63,11 @@ const AdminDashboard = () => {
         title: "Mode administration forcé activé",
         description: "Contournement des vérifications de sécurité pour l'administrateur spécial.",
       });
+      
+      // Attendez un court instant avant de rafraîchir
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
     }
   };
   
@@ -72,6 +79,21 @@ const AdminDashboard = () => {
       title: "Mode administration forcé désactivé",
       description: "Retour au mode de vérification normal.",
     });
+    
+    // Force refresh
+    window.location.reload();
+  };
+
+  const runAdminDiagnostic = async () => {
+    if (isKonointer) {
+      try {
+        const data = await diagnosticRole();
+        setDiagnosticData(data);
+        setIsDiagnosticOpen(true);
+      } catch (error) {
+        console.error("Erreur de diagnostic:", error);
+      }
+    }
   };
 
   // Fonction simplifiée pour initialiser les tables si nécessaire
@@ -100,6 +122,15 @@ const AdminDashboard = () => {
       setIsInitializing(false);
     }
   };
+
+  // Check for forceAdmin param and update localStorage 
+  useEffect(() => {
+    const forceParam = searchParams.get('forceAdmin');
+    if (forceParam === 'true' && isKonointer) {
+      localStorage.setItem(FORCED_ADMIN_MODE_KEY, 'true');
+      setForcedAdminMode(true);
+    }
+  }, [searchParams, isKonointer]);
 
   // Attempt to repair admin role using edge function on component mount
   useEffect(() => {
@@ -186,16 +217,40 @@ const AdminDashboard = () => {
                 </Button>
               </div>
               
-              <div className="border-t pt-4">
-                <h3 className="font-medium mb-2">Détails de diagnostic</h3>
-                <div className="bg-gray-50 p-3 rounded text-sm">
-                  <p><strong>Email:</strong> {user?.email}</p>
-                  <p><strong>Rôle actuel:</strong> {role || 'Non défini'}</p>
-                  <p><strong>ID utilisateur:</strong> {user?.id}</p>
-                  <p><strong>Accès aux tables:</strong> {tablesAccessible ? 'Oui' : 'Non'}</p>
-                  <p><strong>Est admin spécial:</strong> {isSpecialAdmin ? 'Oui' : 'Non'}</p>
+              <div className="border-t pt-4 flex justify-between">
+                <div>
+                  <h3 className="font-medium mb-2">Détails de diagnostic</h3>
+                  <div className="bg-gray-50 p-3 rounded text-sm">
+                    <p><strong>Email:</strong> {user?.email}</p>
+                    <p><strong>Rôle actuel:</strong> {role || 'Non défini'}</p>
+                    <p><strong>ID utilisateur:</strong> {user?.id}</p>
+                    <p><strong>Accès aux tables:</strong> {tablesAccessible ? 'Oui' : 'Non'}</p>
+                    <p><strong>Est admin spécial:</strong> {isSpecialAdmin ? 'Oui' : 'Non'}</p>
+                  </div>
                 </div>
+                
+                <Button
+                  onClick={runAdminDiagnostic}
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 mt-2 text-blue-600"
+                >
+                  <Info className="h-4 w-4 mr-1" />
+                  Diagnostic avancé
+                </Button>
               </div>
+              
+              {isDiagnosticOpen && diagnosticData && (
+                <div className="border-t pt-4">
+                  <h3 className="font-medium mb-2 flex items-center">
+                    <Info className="h-4 w-4 mr-1" />
+                    Rapport de diagnostic complet
+                  </h3>
+                  <div className="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-60">
+                    <pre className="whitespace-pre-wrap break-words">{JSON.stringify(diagnosticData, null, 2)}</pre>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -255,6 +310,20 @@ const AdminDashboard = () => {
           </div>
         )}
         
+        {isKonointer && (
+          <div className="flex justify-end mb-4 gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={runAdminDiagnostic}
+              className="text-blue-600 text-xs"
+            >
+              <Info className="h-3.5 w-3.5 mr-1" />
+              Diagnostic système
+            </Button>
+          </div>
+        )}
+        
         <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="mb-6">
             <TabsTrigger value="modules">Gestion des modules</TabsTrigger>
@@ -274,6 +343,18 @@ const AdminDashboard = () => {
             <SubscriptionManagement />
           </TabsContent>
         </Tabs>
+        
+        {isDiagnosticOpen && diagnosticData && (
+          <div className="mt-8 border rounded-lg p-4 bg-white">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-medium">Rapport de diagnostic</h3>
+              <Button variant="ghost" size="sm" onClick={() => setIsDiagnosticOpen(false)}>Fermer</Button>
+            </div>
+            <div className="bg-gray-50 p-3 rounded text-xs overflow-auto max-h-96">
+              <pre className="whitespace-pre-wrap break-words">{JSON.stringify(diagnosticData, null, 2)}</pre>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );
