@@ -87,3 +87,4 @@ USING (
 -- Grant execute permission on the create_default_modules function
 -- This ensures that authenticated users can call this function
 GRANT EXECUTE ON FUNCTION public.create_default_modules() TO authenticated;
+
