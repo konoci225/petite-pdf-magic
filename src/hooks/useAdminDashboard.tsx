@@ -72,7 +72,8 @@ export const useAdminDashboard = () => {
       console.log("Attempting to initialize admin tables...");
       
       // Try to initialize default modules
-      const { error } = await supabase.rpc('create_default_modules' as any);
+      // Utilise le type correct pour la fonction avec type assertion
+      const { data, error } = await supabase.rpc('create_default_modules');
       
       if (error) {
         console.warn("Error initializing modules:", error);
