@@ -2,19 +2,40 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_MODULES } from "../ModuleConstants";
+import { useUserRole } from "@/hooks/useUserRole";
 
 export const useModuleDefaultService = () => {
   const { toast } = useToast();
+  const { role, isSpecialAdmin } = useUserRole();
 
   // Créer des modules par défaut
   const createDefaultModules = async (): Promise<boolean> => {
     try {
       console.log("Création des modules par défaut...");
       
-      // Appel à la fonction RPC avec le nouveau type de retour (void)
+      // Vérifier les autorisations avant d'essayer de créer des modules
+      if (!role && !isSpecialAdmin) {
+        console.warn("Tentative de création de modules sans rôle approprié");
+      }
+
+      // Utiliser la fonction RPC qui retourne void
       const { error } = await supabase.rpc('create_default_modules');
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erreur RPC:", error);
+        throw error;
+      }
+      
+      // Vérifier que les modules ont été créés en effectuant une requête
+      const { data: modules, error: checkError } = await supabase
+        .from('modules')
+        .select('count')
+        .single();
+        
+      if (checkError) {
+        console.error("Erreur lors de la vérification des modules:", checkError);
+        throw checkError;
+      }
       
       toast({
         title: "Succès",

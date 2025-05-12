@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -7,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSearchParams } from "react-router-dom";
 import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { useAdminModeService, SPECIAL_ADMIN_EMAIL } from "@/services/AdminModeService";
+import { useModuleDefaultService } from "@/components/admin/modules/services/ModuleDefaultService";
 
 export const useAdminDashboard = () => {
   const { user } = useAuth();
@@ -26,6 +26,9 @@ export const useAdminDashboard = () => {
     enableForcedAdminMode,
     disableForcedAdminMode 
   } = useAdminModeService(user?.email);
+  
+  // Utiliser le service de modules
+  const { createDefaultModules } = useModuleDefaultService();
   
   const [searchParams] = useSearchParams();
   const [isInitializing, setIsInitializing] = useState(false);
@@ -71,18 +74,10 @@ export const useAdminDashboard = () => {
     try {
       console.log("Attempting to initialize admin tables...");
       
-      // Try to initialize default modules
-      // Utilise le type correct pour la fonction avec type assertion
-      const { data, error } = await supabase.rpc('create_default_modules');
+      // Utiliser le service de module pour créer les modules par défaut
+      const success = await createDefaultModules();
       
-      if (error) {
-        console.warn("Error initializing modules:", error);
-        toast({
-          title: "Erreur d'initialisation",
-          description: `Impossible de créer les modules par défaut: ${error.message}`,
-          variant: "destructive",
-        });
-      } else {
+      if (success) {
         console.log("Module initialization successful");
         toast({
           title: "Initialisation réussie",
@@ -99,7 +94,7 @@ export const useAdminDashboard = () => {
     } finally {
       setIsInitializing(false);
     }
-  }, [user, isInitializing, toast]);
+  }, [user, isInitializing, toast, createDefaultModules]);
 
   // Auto-repair function on component mount
   useEffect(() => {

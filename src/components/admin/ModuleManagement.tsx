@@ -34,14 +34,21 @@ export const ModuleManagement = () => {
     try {
       const fetchedModules = await moduleService.fetchModules();
       
-      if (fetchedModules.length === 0) {
+      if (fetchedModules && fetchedModules.length === 0) {
         // Create default modules only if no modules exist
         console.log("Aucun module trouvé, création des modules par défaut...");
-        await moduleService.createDefaultModules();
-        const refreshedModules = await moduleService.fetchModules();
-        setModules(refreshedModules);
+        const created = await moduleService.createDefaultModules();
+        
+        if (created) {
+          // Si les modules ont été créés, récupérer à nouveau la liste
+          const refreshedModules = await moduleService.fetchModules();
+          setModules(refreshedModules || []);
+        } else {
+          // Informer si la création a échoué
+          setError("La création des modules par défaut a échoué");
+        }
       } else {
-        setModules(fetchedModules);
+        setModules(fetchedModules || []);
       }
     } catch (err: any) {
       console.error("Failed to fetch modules:", err);
