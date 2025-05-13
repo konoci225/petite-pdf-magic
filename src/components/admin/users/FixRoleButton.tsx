@@ -159,7 +159,7 @@ const FixRoleButton = ({
     toast({
       title: "Mode administrateur forcé activé",
       description: "Accès administrateur activé en mode de secours.",
-      variant: "warning",
+      variant: "destructive",
     });
     
     // Force a page reload after a short delay
@@ -188,7 +188,7 @@ const FixRoleButton = ({
       </Button>
       
       {isForcedAdminMode && (
-        <Alert variant="warning" className="text-xs p-3">
+        <Alert variant="default" className="text-xs p-3 bg-amber-50 border-amber-300 text-amber-800">
           <Info className="h-4 w-4" />
           <AlertTitle className="text-xs font-medium">Mode forcé actif</AlertTitle>
           <AlertDescription className="text-xs">
@@ -209,7 +209,7 @@ const FixRoleButton = ({
       )}
       
       {showFallbackOption && !isSuccess && !isForcedAdminMode && (
-        <Alert variant="warning" className="p-3 mt-2">
+        <Alert variant="destructive" className="p-3 mt-2">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle className="text-xs font-medium">Méthodes standards échouées</AlertTitle>
           <AlertDescription className="text-xs">

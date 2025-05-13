@@ -16,7 +16,7 @@ export const useModuleDefaultService = () => {
       
       try {
         console.log("Tentative avec la fonction RPC create_default_modules");
-        const { error } = await supabase.rpc('create_default_modules');
+        const { data, error } = await supabase.rpc('create_default_modules');
         
         if (error) {
           console.error("Erreur RPC:", error);
@@ -35,9 +35,9 @@ export const useModuleDefaultService = () => {
         console.log("Méthode RPC a échoué, tentative avec insertion directe");
         
         // Vérifier d'abord si des modules existent déjà
-        const { count, error: countError } = await supabase
+        const { data, error: countError } = await supabase
           .from('modules')
-          .select('*', { count: 'exact', head: true });
+          .select('*', { head: true });
           
         if (countError) {
           console.error("Erreur lors de la vérification des modules:", countError);
@@ -45,7 +45,7 @@ export const useModuleDefaultService = () => {
         }
         
         // S'il n'y a pas de modules, en créer
-        if (count === 0) {
+        if (!data || data.length === 0) {
           console.log("Aucun module trouvé, insertion directe des modules par défaut");
           
           // Liste des modules par défaut (utilisant DEFAULT_MODULES depuis ModuleConstants)
@@ -118,17 +118,16 @@ export const useModuleDefaultService = () => {
       }
       
       // Vérifier que les modules ont été créés
-      const { data: modules, error: checkError } = await supabase
+      const { data, error: checkError } = await supabase
         .from('modules')
-        .select('count')
-        .single();
+        .select('*');
         
       if (checkError) {
         console.error("Erreur lors de la vérification finale des modules:", checkError);
         throw checkError;
       }
       
-      console.log("Vérification des modules réussie:", modules);
+      console.log("Vérification des modules réussie:", data?.length || 0, "modules trouvés");
       
       toast({
         title: "Succès",

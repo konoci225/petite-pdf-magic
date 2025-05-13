@@ -90,13 +90,13 @@ export const useAdminDashboard = () => {
           .select('*', { count: 'exact', head: true });
           
         diagnosticResults.moduleAccessResult = !moduleError;
-        diagnosticResults.moduleCount = moduleData?.count;
+        diagnosticResults.moduleCount = moduleData ? moduleData.length : 0;
         
         if (moduleError) {
           console.error("Module access error:", moduleError);
           diagnosticResults.moduleAccessError = moduleError.message;
         } else {
-          console.log("Module access successful, count:", moduleData?.count);
+          console.log("Module access successful, count:", moduleData ? moduleData.length : 0);
         }
       } catch (err: any) {
         console.error("Module access exception:", err);
@@ -166,7 +166,7 @@ export const useAdminDashboard = () => {
       setIsDiagnosticOpen(true);
       
       // Recommendations
-      const hasRoleIssue = !diagnosticResults.roleData?.role === 'super_admin';
+      const hasRoleIssue = diagnosticResults.roleData?.role !== 'super_admin';
       const hasAccessIssue = !diagnosticResults.moduleAccessResult;
       const hasRpcIssue = !diagnosticResults.rpcAccessResult;
       
@@ -174,7 +174,7 @@ export const useAdminDashboard = () => {
         toast({
           title: "Problèmes d'accès détectés",
           description: "Des problèmes d'accès ont été identifiés. Le mode forcé est recommandé.",
-          variant: "warning",
+          variant: "destructive",
         });
       } else {
         toast({
@@ -276,7 +276,7 @@ export const useAdminDashboard = () => {
               toast({
                 title: "Mode forcé activé",
                 description: "Le mode administrateur forcé a été activé automatiquement.",
-                variant: "warning",
+                variant: "destructive",
               });
             }
           }
@@ -289,7 +289,7 @@ export const useAdminDashboard = () => {
             toast({
               title: "Mode forcé activé",
               description: "Le mode administrateur forcé a été activé suite à une erreur.",
-              variant: "warning",
+              variant: "destructive",
             });
           }
         }
