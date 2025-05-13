@@ -2,22 +2,15 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DEFAULT_MODULES } from "../ModuleConstants";
-import { useUserRole } from "@/hooks/useUserRole";
 
 export const useModuleDefaultService = () => {
   const { toast } = useToast();
-  const { role, isSpecialAdmin } = useUserRole();
 
   // Créer des modules par défaut
   const createDefaultModules = async (): Promise<boolean> => {
     try {
       console.log("Création des modules par défaut...");
       
-      // Vérifier les autorisations avant d'essayer de créer des modules
-      if (!role && !isSpecialAdmin) {
-        console.warn("Tentative de création de modules sans rôle approprié");
-      }
-
       // Appeler la fonction RPC sans essayer de définir le rôle PostgreSQL
       const { error } = await supabase.rpc('create_default_modules');
       

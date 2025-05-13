@@ -115,6 +115,7 @@ const AdminDashboard = () => {
           isInitializing={isInitializing}
           onRunDiagnostic={runAdminDiagnostic}
           onInitializeModules={initializeAdminAccess}
+          forcedAdminMode={forcedAdminMode}
         />
         
         <Tabs defaultValue={defaultTab} className="w-full">
@@ -142,6 +143,7 @@ const AdminDashboard = () => {
           isOpen={isDiagnosticOpen}
           data={diagnosticData}
           onClose={() => setIsDiagnosticOpen(false)}
+          onEnableForcedMode={!forcedAdminMode ? handleEnableForcedAdminMode : undefined}
         />
       </div>
     </Layout>

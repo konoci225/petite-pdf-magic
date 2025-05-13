@@ -8,13 +8,15 @@ interface AdminQuickActionsProps {
   isInitializing: boolean;
   onRunDiagnostic: () => void;
   onInitializeModules: () => void;
+  forcedAdminMode?: boolean;
 }
 
 const AdminQuickActions = ({ 
   isKonointer,
   isInitializing,
   onRunDiagnostic,
-  onInitializeModules
+  onInitializeModules,
+  forcedAdminMode = false
 }: AdminQuickActionsProps) => {
   const [isDiagnosticRunning, setIsDiagnosticRunning] = useState(false);
   
@@ -59,6 +61,17 @@ const AdminQuickActions = ({
         )}
         Initialiser modules
       </Button>
+      {forcedAdminMode && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="text-amber-600 text-xs flex items-center"
+          disabled
+        >
+          <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+          Mode forcé actif
+        </Button>
+      )}
     </div>
   );
 };

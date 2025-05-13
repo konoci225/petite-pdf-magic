@@ -1,14 +1,17 @@
 
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 interface DiagnosticResultProps {
   isOpen: boolean;
   data: any;
   onClose: () => void;
+  onEnableForcedMode?: () => void;
 }
 
-const DiagnosticResult = ({ isOpen, data, onClose }: DiagnosticResultProps) => {
+const DiagnosticResult = ({ isOpen, data, onClose, onEnableForcedMode }: DiagnosticResultProps) => {
   if (!isOpen || !data) return null;
   
   const renderStatusIcon = (success: boolean) => {
@@ -18,14 +21,20 @@ const DiagnosticResult = ({ isOpen, data, onClose }: DiagnosticResultProps) => {
   };
   
   // Extract key status indicators from diagnostic data
-  const hasRole = data.roleData?.role === 'super_admin';
+  const hasRole = data.roleData?.role === 'super_admin' || data.role === 'super_admin';
   const canAccessModules = data.moduleAccessResult === true;
   const canExecuteRpc = data.rpcAccessResult === true || data.rpcSuccess === true;
+  const hasSeriousIssues = !canAccessModules || !canExecuteRpc;
   
   return (
-    <div className="mt-8 border rounded-lg p-4 bg-white">
+    <div className="mt-4 border rounded-lg p-4 bg-white shadow">
       <div className="flex justify-between items-center mb-4">
-        <h3 className="font-medium">Rapport de diagnostic</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium">Rapport de diagnostic</h3>
+          <Badge variant={hasSeriousIssues ? "destructive" : "outline"} className="text-xs">
+            {hasSeriousIssues ? "Problèmes détectés" : "Aucun problème majeur"}
+          </Badge>
+        </div>
         <Button variant="ghost" size="sm" onClick={onClose}>Fermer</Button>
       </div>
       
@@ -46,16 +55,39 @@ const DiagnosticResult = ({ isOpen, data, onClose }: DiagnosticResultProps) => {
             <span>Exécution RPC: {canExecuteRpc ? 'OK' : 'Échec'}</span>
           </li>
           <li className="flex items-center gap-2">
-            {renderStatusIcon(data.forcedAdminMode)}
+            {data.forcedAdminMode ? 
+              <ShieldCheck className="h-4 w-4 text-amber-500" /> : 
+              <AlertTriangle className="h-4 w-4 text-gray-400" />}
             <span>Mode forcé: {data.forcedAdminMode ? 'Activé' : 'Désactivé'}</span>
           </li>
         </ul>
         
         {/* Recommendations based on diagnostic results */}
-        {!canExecuteRpc && (
-          <div className="mt-3 p-2 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
-            <strong>Recommandation:</strong> Activez le mode forcé d'administration pour contourner les problèmes d'accès.
-          </div>
+        {hasSeriousIssues && (
+          <Alert variant="warning" className="mt-3">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Recommandation</AlertTitle>
+            <AlertDescription>
+              {!data.forcedAdminMode ? (
+                <>
+                  Activez le mode forcé d'administration pour contourner les problèmes d'accès.
+                  {onEnableForcedMode && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="ml-2 mt-1"
+                      onClick={onEnableForcedMode}
+                    >
+                      <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                      Activer
+                    </Button>
+                  )}
+                </>
+              ) : (
+                "Le mode forcé est déjà actif. Utilisez-le pour gérer les modules et les utilisateurs."
+              )}
+            </AlertDescription>
+          </Alert>
         )}
       </div>
       
