@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types"; 
 import { useToast } from "@/hooks/use-toast";
 import { useAdminModeService, SPECIAL_ADMIN_EMAIL } from "@/services/AdminModeService";
+import { useRoleManagement } from "@/hooks/admin/useRoleManagement";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -14,8 +15,6 @@ export const useUserRole = () => {
   const [role, setRole] = useState<AppRole | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastRefreshTime, setLastRefreshTime] = useState<number>(0);
-  const [hasTriedEdgeFunction, setHasTriedEdgeFunction] = useState(false);
-  const [hasTriedDirectRepair, setHasTriedDirectRepair] = useState(false);
   
   // Special admin detection - very important for bypass mechanisms
   const isSpecialAdmin = user?.email === SPECIAL_ADMIN_EMAIL;
@@ -26,12 +25,19 @@ export const useUserRole = () => {
     enableForcedAdminMode 
   } = useAdminModeService(user?.email);
   
+  // Get role management utilities
+  const {
+    ensureRoleWithEdgeFunction,
+    ensureRoleDirectly,
+    diagnosticRole,
+    hasTriedEdgeFunction,
+    hasTriedDirectRepair
+  } = useRoleManagement(user, isSpecialAdmin);
+  
   // Role clearing on logout
   const clearRole = useCallback(() => {
     setRole(null);
     setIsLoading(false);
-    setHasTriedEdgeFunction(false);
-    setHasTriedDirectRepair(false);
   }, []);
 
   // Automatically apply special admin role for the designated user or forced mode
@@ -43,86 +49,6 @@ export const useUserRole = () => {
     }
     return false;
   }, [isSpecialAdmin, isForcedAdminMode]);
-
-  // Diagnostic function to help troubleshoot role issues
-  const diagnosticRole = useCallback(async (): Promise<any> => {
-    if (!user) return null;
-    
-    try {
-      console.log("Running role diagnostic via admin-bypass");
-      const { data, error } = await supabase.functions.invoke("admin-bypass", {
-        body: { action: "diagnostic" }
-      });
-      
-      if (error) {
-        console.error("Diagnostic error:", error);
-        return null;
-      }
-      
-      return data;
-    } catch (err) {
-      console.error("Exception during diagnostic:", err);
-      return null;
-    }
-  }, [user]);
-
-  // Emergency repair method using Edge Function
-  const ensureRoleWithEdgeFunction = useCallback(async () => {
-    if (!user || hasTriedEdgeFunction) return false;
-    
-    setHasTriedEdgeFunction(true);
-    try {
-      console.log("Attempting to set role via Edge Function for special admin");
-      
-      const { data, error } = await supabase.functions.invoke("set-admin-role", {
-        body: { 
-          email: user.email,
-          userId: user.id,
-          forceRepair: true
-        }
-      });
-      
-      if (error) {
-        console.error("Edge function error:", error);
-        return false;
-      }
-      
-      console.log("Edge function response:", data);
-      return data?.success || false;
-    } catch (err) {
-      console.error("Edge function error (catch):", err);
-      return false;
-    }
-  }, [user, hasTriedEdgeFunction]);
-
-  // Direct database repair attempt (last resort)
-  const ensureRoleDirectly = useCallback(async () => {
-    if (!user || !isSpecialAdmin || hasTriedDirectRepair) return false;
-    
-    setHasTriedDirectRepair(true);
-    try {
-      console.log("Attempting direct database repair for special admin");
-      
-      // Attempt using the admin-bypass function
-      const { data, error } = await supabase.functions.invoke("admin-bypass", {
-        body: { 
-          action: "force_super_admin_role",
-          targetUserId: user.id
-        }
-      });
-      
-      if (error) {
-        console.error("Direct repair error:", error);
-        return false;
-      }
-      
-      console.log("Direct repair response:", data);
-      return data?.success || false;
-    } catch (err) {
-      console.error("Direct repair error (catch):", err);
-      return false;
-    }
-  }, [user, isSpecialAdmin, hasTriedDirectRepair]);
 
   // Manual refresh function
   const refreshRole = useCallback(async (forceRepair = false) => {

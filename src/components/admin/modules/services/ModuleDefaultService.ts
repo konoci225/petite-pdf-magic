@@ -35,7 +35,7 @@ export const useModuleDefaultService = () => {
         console.log("Méthode RPC a échoué, tentative avec insertion directe");
         
         // Vérifier d'abord si des modules existent déjà
-        const { data, error: countError } = await supabase
+        const { data: existingData, error: countError } = await supabase
           .from('modules')
           .select('*', { head: true });
           
@@ -45,7 +45,7 @@ export const useModuleDefaultService = () => {
         }
         
         // S'il n'y a pas de modules, en créer
-        if (!data || data.length === 0) {
+        if (!existingData || existingData.length === 0) {
           console.log("Aucun module trouvé, insertion directe des modules par défaut");
           
           // Liste des modules par défaut (utilisant DEFAULT_MODULES depuis ModuleConstants)
