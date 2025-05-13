@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/providers/AuthProvider";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Loader2, AlertTriangle } from "lucide-react";
+import { Shield, Loader2, AlertTriangle, Info } from "lucide-react";
 import { useUserRole } from '@/hooks/useUserRole';
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 interface FixRoleButtonProps {
   size?: 'default' | 'sm' | 'lg' | 'icon';
@@ -18,11 +19,12 @@ const FixRoleButton = ({
 }: FixRoleButtonProps) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { refreshRole, isSpecialAdmin, enableForcedAdminMode } = useUserRole();
+  const { refreshRole, isSpecialAdmin, enableForcedAdminMode, isForcedAdminMode } = useUserRole();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [attempts, setAttempts] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showFallbackOption, setShowFallbackOption] = useState(false);
 
   const handleRepairRole = async () => {
     if (!user) {
@@ -39,6 +41,18 @@ const FixRoleButton = ({
     setErrorMessage(null);
     
     try {
+      // Si le mode forcé est déjà actif, informer l'utilisateur
+      if (isForcedAdminMode) {
+        toast({
+          title: "Mode forcé déjà actif",
+          description: "Vous utilisez déjà le mode administrateur forcé.",
+          variant: "default",
+        });
+        setIsSuccess(true);
+        setIsLoading(false);
+        return;
+      }
+
       // MÉTHODE 1: Call the edge function first
       console.log("Calling set-admin-role edge function");
       const { data: edgeData, error: edgeError } = await supabase.functions.invoke(
@@ -94,6 +108,7 @@ const FixRoleButton = ({
       if (bypassError) {
         console.error("Admin-bypass error:", bypassError);
         setErrorMessage(`Admin-bypass error: ${bypassError.message}`);
+        setShowFallbackOption(true);
       }
       
       console.log("Admin-bypass response:", bypassData);
@@ -119,25 +134,15 @@ const FixRoleButton = ({
       
       // MÉTHODE 3: Last resort - manually enable forced admin mode
       if (isSpecialAdmin) {
-        console.log("Trying forced admin mode");
-        enableForcedAdminMode();
-        
-        setIsSuccess(true);
-        toast({
-          title: "Mode administrateur forcé activé",
-          description: "Un mode de secours a été activé pour vous donner accès.",
-        });
-        
-        // Force page reload
-        setTimeout(() => {
-          window.location.reload();
-        }, 1500);
+        console.log("Echec des méthodes standards - activation du mode forcé");
+        setShowFallbackOption(true);
       } else {
         throw new Error("Aucune méthode de réparation n'a fonctionné");
       }
     } catch (error: any) {
       console.error("Error during role repair:", error);
       setErrorMessage(`Error: ${error.message}`);
+      setShowFallbackOption(true);
       toast({
         title: "Erreur lors de la réparation",
         description: error.message,
@@ -148,11 +153,26 @@ const FixRoleButton = ({
     }
   };
 
+  const handleEnableForcedMode = () => {
+    enableForcedAdminMode();
+    setIsSuccess(true);
+    toast({
+      title: "Mode administrateur forcé activé",
+      description: "Accès administrateur activé en mode de secours.",
+      variant: "warning",
+    });
+    
+    // Force a page reload after a short delay
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+  };
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <Button 
         onClick={handleRepairRole}
-        disabled={isLoading || isSuccess}
+        disabled={isLoading || isSuccess || isForcedAdminMode}
         variant={isSuccess ? "default" : variant}
         size={size}
         className={isSuccess ? "bg-green-600 hover:bg-green-700" : ""}
@@ -167,6 +187,16 @@ const FixRoleButton = ({
         {isLoading ? "Réparation en cours..." : isSuccess ? "Réparé avec succès" : "Réparer les autorisations"}
       </Button>
       
+      {isForcedAdminMode && (
+        <Alert variant="warning" className="text-xs p-3">
+          <Info className="h-4 w-4" />
+          <AlertTitle className="text-xs font-medium">Mode forcé actif</AlertTitle>
+          <AlertDescription className="text-xs">
+            Le mode administrateur forcé est déjà activé. Vous avez accès aux fonctions d'administration.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       {errorMessage && (
         <div className="text-xs bg-yellow-50 border border-yellow-200 text-yellow-800 p-2 rounded">
           <div className="flex items-center mb-1">
@@ -176,6 +206,24 @@ const FixRoleButton = ({
           <p>{errorMessage}</p>
           <p className="mt-1 text-xs">Essai {attempts}/3</p>
         </div>
+      )}
+      
+      {showFallbackOption && !isSuccess && !isForcedAdminMode && (
+        <Alert variant="warning" className="p-3 mt-2">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle className="text-xs font-medium">Méthodes standards échouées</AlertTitle>
+          <AlertDescription className="text-xs">
+            Impossible de réparer le rôle via les méthodes standards. Activer le mode administrateur forcé?
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="mt-2 w-full bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+              onClick={handleEnableForcedMode}
+            >
+              <Shield className="mr-1 h-3.5 w-3.5" /> Activer le mode forcé
+            </Button>
+          </AlertDescription>
+        </Alert>
       )}
     </div>
   );

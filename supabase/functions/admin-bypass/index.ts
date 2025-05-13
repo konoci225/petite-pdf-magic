@@ -32,32 +32,7 @@ serve(async (req) => {
       supabaseServiceKey
     )
     
-    // Also create client with auth from request for authenticated actions
-    const supabaseClient = createClient(
-      supabaseUrl, 
-      supabaseServiceKey,
-      { 
-        global: { 
-          headers: { Authorization: req.headers.get('Authorization') ?? '' } 
-        } 
-      }
-    )
-
-    // Get the authenticated user
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser()
-    
-    if (userError) {
-      throw new Error(`Authentication error: ${userError.message}`)
-    }
-
-    if (!user) {
-      throw new Error('No authenticated user')
-    }
-
-    // Check if this is the special admin user
-    const isSpecialAdmin = user.email === SPECIAL_ADMIN_EMAIL
-    
-    // Parse the request body
+    // Parse the request body first
     let requestBody = {}
     try {
       requestBody = await req.json()
@@ -69,11 +44,161 @@ serve(async (req) => {
       action?: string, 
       targetUserId?: string 
     }
+
+    // Create client with auth from request for authenticated actions
+    let user = null
+    const authHeader = req.headers.get('Authorization')
     
-    // Provide special bypass mode for konointer@gmail.com
+    if (authHeader) {
+      try {
+        // Create client with auth from request
+        const supabaseClient = createClient(
+          supabaseUrl, 
+          supabaseServiceKey,
+          { 
+            global: { 
+              headers: { Authorization: authHeader } 
+            } 
+          }
+        )
+
+        // Get the authenticated user
+        const { data: userData, error: userError } = await supabaseClient.auth.getUser()
+        
+        if (userError) {
+          console.error(`Authentication error: ${userError.message}`)
+        } else {
+          user = userData?.user
+          console.log("Authenticated user:", user?.email)
+        }
+      } catch (authError) {
+        console.error("Error during authentication:", authError)
+      }
+    } else {
+      console.log("No auth header provided, continuing in anonymous mode")
+    }
+    
+    // Check for public actions that don't need auth
+    if (action === 'ping') {
+      return new Response(
+        JSON.stringify({ success: true, message: 'Pong!' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // If no user found from auth header, try to proceed with limited functionality
+    // Special bypass mode for anonymous or authenticated konointer@gmail.com
+    const isSpecialAdmin = user?.email === SPECIAL_ADMIN_EMAIL
+    const isSpecialAdminRequest = action?.includes('special_admin') || action === 'diagnostic'
+    
+    // Use admin client for specific admin tasks and diagnostics
+    if (isSpecialAdminRequest) {
+      if (action === 'diagnostic') {
+        console.log("Diagnostic action requested")
+        
+        // Comprehensive diagnostic information
+        const diagnosticData: Record<string, any> = {
+          timestamp: new Date().toISOString(),
+          authStatus: user ? 'authenticated' : 'anonymous',
+          userInfo: user ? {
+            id: user.id,
+            email: user.email,
+          } : null
+        }
+        
+        // Try to get user role if authenticated
+        if (user) {
+          try {
+            const { data: roleData, error: roleError } = await supabaseAdmin
+              .from('user_roles')
+              .select('role, updated_at')
+              .eq('user_id', user.id)
+              .single()
+            
+            if (!roleError) {
+              diagnosticData.role = roleData?.role
+              diagnosticData.role_updated_at = roleData?.updated_at
+            } else {
+              diagnosticData.role_error = roleError.message
+            }
+          } catch (e) {
+            diagnosticData.role_error = `Exception: ${e.message}`
+          }
+        }
+        
+        // Check modules table access with admin client
+        try {
+          const { data: modulesAdminData, error: modulesAdminError } = await supabaseAdmin
+            .from('modules')
+            .select('count(*)')
+            .single()
+          
+          diagnosticData.modules_admin_access = !modulesAdminError
+          diagnosticData.modules_admin_count = modulesAdminData?.count
+          
+          if (modulesAdminError) {
+            diagnosticData.modules_admin_error = modulesAdminError.message
+          }
+        } catch (e) {
+          diagnosticData.modules_admin_error = `Exception: ${e.message}`
+        }
+        
+        // Check modules table access directly from authenticated user
+        if (user) {
+          try {
+            const supabaseUser = createClient(
+              supabaseUrl, 
+              supabaseServiceKey,
+              { 
+                global: { 
+                  headers: { Authorization: req.headers.get('Authorization') ?? '' } 
+                } 
+              }
+            )
+            
+            const { data: modulesData, error: modulesError } = await supabaseUser
+              .from('modules')
+              .select('count(*)')
+              .single()
+            
+            diagnosticData.modules_user_access = !modulesError
+            diagnosticData.modules_user_count = modulesData?.count
+            
+            if (modulesError) {
+              diagnosticData.modules_user_error = modulesError.message
+            }
+          } catch (e) {
+            diagnosticData.modules_user_error = `Exception: ${e.message}`
+          }
+        }
+        
+        // Try to create default modules if requested
+        try {
+          const { error: defaultModulesError } = await supabaseAdmin.rpc('create_default_modules')
+          
+          diagnosticData.default_modules_result = !defaultModulesError
+          
+          if (defaultModulesError) {
+            diagnosticData.default_modules_error = defaultModulesError.message
+          }
+        } catch (e) {
+          diagnosticData.default_modules_error = `Exception: ${e.message}`
+        }
+        
+        return new Response(
+          JSON.stringify({
+            success: true,
+            ...diagnosticData
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
+    
+    // For other admin actions, require either authentication or specific email match
     if (isSpecialAdmin) {
       if (action === 'force_super_admin_role') {
-        console.log("Action force_super_admin_role requested for", targetUserId || user.id)
+        console.log("Action force_super_admin_role requested for", targetUserId || user?.id)
         
         try {
           // Try three different methods to ensure the role is set
@@ -83,7 +208,7 @@ serve(async (req) => {
           try {
             const { error: rpcError } = await supabaseAdmin.rpc(
               'force_set_super_admin_role',
-              { target_user_id: targetUserId || user.id }
+              { target_user_id: targetUserId || user?.id }
             )
             
             if (!rpcError) {
@@ -103,7 +228,7 @@ serve(async (req) => {
                 .from('user_roles')
                 .upsert(
                   { 
-                    user_id: targetUserId || user.id, 
+                    user_id: targetUserId || user?.id, 
                     role: 'super_admin', 
                     updated_at: new Date().toISOString() 
                   },
@@ -121,26 +246,34 @@ serve(async (req) => {
             }
           }
           
-          // Method 3: Execute raw SQL as last resort
-          if (!success) {
+          // Method 3: Execute raw SQL as last resort (using admin client)
+          if (!success && (targetUserId || user?.id)) {
             try {
-              const { error: sqlError } = await supabaseAdmin.rpc(
-                'execute_admin_sql',
-                { 
-                  sql_command: `
-                    INSERT INTO public.user_roles (user_id, role, updated_at)
-                    VALUES ('${targetUserId || user.id}', 'super_admin', now())
-                    ON CONFLICT (user_id) 
-                    DO UPDATE SET role = 'super_admin', updated_at = now();
-                  `
-                }
-              )
+              const userId = targetUserId || user?.id
+              // Direct SQL through Supabase - safer than raw SQL
+              const { error: sqlError } = await supabaseAdmin
+                .from('user_roles')
+                .delete()
+                .eq('user_id', userId)
               
-              if (!sqlError) {
+              if (sqlError) {
+                console.error("Delete error:", sqlError)
+              }
+              
+              // Insert new role
+              const { error: insertError } = await supabaseAdmin
+                .from('user_roles')
+                .insert({
+                  user_id: userId,
+                  role: 'super_admin',
+                  updated_at: new Date().toISOString()
+                })
+              
+              if (!insertError) {
                 success = true
                 console.log("Method 3 successful")
               } else {
-                console.error("Method 3 error:", sqlError)
+                console.error("Method 3 error:", insertError)
               }
             } catch (error) {
               console.error("Method 3 exception:", error)
@@ -148,30 +281,26 @@ serve(async (req) => {
           }
           
           // Check if the role was set correctly
-          const { data: roleCheck, error: checkError } = await supabaseAdmin
-            .from("user_roles")
-            .select("role")
-            .eq("user_id", targetUserId || user.id)
-            .single();
-            
-          if (checkError) {
-            console.error("Role check error:", checkError)
-          } else {
-            console.log("Role check result:", roleCheck)
-            success = roleCheck?.role === 'super_admin'
-          }
-          
-          if (success) {
-            console.log("Role set successfully for", targetUserId || user.id)
-          } else {
-            console.error("Failed to set role after all attempts")
+          if (targetUserId || user?.id) {
+            const { data: roleCheck, error: checkError } = await supabaseAdmin
+              .from("user_roles")
+              .select("role")
+              .eq("user_id", targetUserId || user?.id)
+              .single();
+              
+            if (checkError) {
+              console.error("Role check error:", checkError)
+            } else {
+              console.log("Role check result:", roleCheck)
+              success = roleCheck?.role === 'super_admin'
+            }
           }
           
           return new Response(
             JSON.stringify({ 
               success, 
               message: success ? 'Super admin role applied successfully' : 'Failed to apply role',
-              current_role: roleCheck?.role
+              user_id: targetUserId || user?.id
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
@@ -179,85 +308,32 @@ serve(async (req) => {
           console.error("Inner error:", innerError)
           throw innerError
         }
-      } 
-      else if (action === 'diagnostic') {
-        console.log("Diagnostic action requested")
-        
-        // Comprehensive diagnostic information
-        const diagnosticData: Record<string, any> = {
-          user: {
-            id: user.id,
-            email: user.email,
-          },
-          timestamp: new Date().toISOString(),
-        }
-        
-        // Get user role
-        try {
-          const { data: roleData, error: roleError } = await supabaseAdmin
-            .from('user_roles')
-            .select('role, updated_at')
-            .eq('user_id', user.id)
-            .single()
-          
-          if (!roleError) {
-            diagnosticData.role = roleData?.role
-            diagnosticData.role_updated_at = roleData?.updated_at
-          } else {
-            diagnosticData.role_error = roleError.message
-          }
-        } catch (e) {
-          diagnosticData.role_error = `Exception: ${e.message}`
-        }
-        
-        // Check modules table access
-        try {
-          const { data: modulesData, error: modulesError } = await supabaseClient
-            .from('modules')
-            .select('count(*)')
-            .single()
-          
-          diagnosticData.modules_access = !modulesError
-          diagnosticData.modules_count = modulesData?.count
-          
-          if (modulesError) {
-            diagnosticData.modules_error = modulesError.message
-          }
-        } catch (e) {
-          diagnosticData.modules_error = `Exception: ${e.message}`
-        }
-        
-        // Try to run create_default_modules
-        try {
-          const { error: defaultModulesError } = await supabaseClient.rpc('create_default_modules')
-          
-          diagnosticData.default_modules_result = !defaultModulesError
-          
-          if (defaultModulesError) {
-            diagnosticData.default_modules_error = defaultModulesError.message
-          }
-        } catch (e) {
-          diagnosticData.default_modules_error = `Exception: ${e.message}`
-        }
-        
-        // Check if the special bypass is active
-        diagnosticData.is_special_admin = isSpecialAdmin
-        
-        return new Response(
-          JSON.stringify({
-            success: true,
-            ...diagnosticData
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
       }
     }
     
-    // If we reach here, either the user is not konointer@gmail.com or the action is not supported
+    // If we reach here, either the user is not authorized or the action is not supported
     if (!isSpecialAdmin) {
-      throw new Error('Unauthorized: Only the special admin can use this function')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Unauthorized: Special admin access required',
+          name: 'Authorization Error'
+        }),
+        { 
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     } else {
-      throw new Error('Invalid action specified')
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid action specified',
+          name: 'Invalid Action'
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
     }
   } catch (error) {
     console.error('Admin bypass function error:', error)
