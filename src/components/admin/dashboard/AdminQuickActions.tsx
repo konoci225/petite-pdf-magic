@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
-import { Info, RefreshCw, Loader2 } from "lucide-react";
+import { Info, RefreshCw, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 
 interface AdminQuickActionsProps {
   isKonointer: boolean;
@@ -15,24 +16,40 @@ const AdminQuickActions = ({
   onRunDiagnostic,
   onInitializeModules
 }: AdminQuickActionsProps) => {
+  const [isDiagnosticRunning, setIsDiagnosticRunning] = useState(false);
+  
+  const handleRunDiagnostic = async () => {
+    setIsDiagnosticRunning(true);
+    try {
+      await onRunDiagnostic();
+    } finally {
+      setIsDiagnosticRunning(false);
+    }
+  };
+
   if (!isKonointer) return null;
 
   return (
     <div className="flex justify-end mb-4 gap-2">
       <Button 
-        variant="ghost" 
+        variant="outline" 
         size="sm"
-        onClick={onRunDiagnostic}
-        className="text-blue-600 text-xs"
+        onClick={handleRunDiagnostic}
+        className="text-blue-600 text-xs flex items-center"
+        disabled={isDiagnosticRunning}
       >
-        <Info className="h-3.5 w-3.5 mr-1" />
+        {isDiagnosticRunning ? (
+          <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+        ) : (
+          <Info className="h-3.5 w-3.5 mr-1" />
+        )}
         Diagnostic système
       </Button>
       <Button 
-        variant="ghost" 
+        variant="outline" 
         size="sm"
         onClick={onInitializeModules}
-        className="text-green-600 text-xs"
+        className="text-green-600 text-xs flex items-center"
         disabled={isInitializing}
       >
         {isInitializing ? (

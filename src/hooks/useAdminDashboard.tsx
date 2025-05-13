@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -35,6 +36,7 @@ export const useAdminDashboard = () => {
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [isDiagnosticOpen, setIsDiagnosticOpen] = useState(false);
   const [isAdminRepairOpen, setIsAdminRepairOpen] = useState(true);
+  const [diagnosticRunning, setDiagnosticRunning] = useState(false);
   const defaultTab = searchParams.get('tab') || 'modules';
   
   // Explicit detection of special email for bypass
@@ -42,29 +44,113 @@ export const useAdminDashboard = () => {
 
   // Run diagnostic for better troubleshooting
   const runAdminDiagnostic = useCallback(async () => {
-    if (isKonointer) {
+    if (!isKonointer) return;
+    
+    try {
+      setDiagnosticRunning(true);
+      setDiagnosticData(null);  // Clear previous data
+      
+      console.log("Running admin diagnostic...");
+      let diagnosticResults: any = {};
+      
+      // Attempt 1: Use admin-bypass function
       try {
-        setDiagnosticData(null);  // Clear previous data
-        const data = await diagnosticRole();
-        setDiagnosticData(data);
-        setIsDiagnosticOpen(true);
-        
-        if (data) {
-          toast({
-            title: "Diagnostic terminé",
-            description: `État du rôle: ${data.role || 'Non défini'}`,
-          });
-        }
-      } catch (error) {
-        console.error("Diagnostic error:", error);
-        toast({
-          title: "Erreur de diagnostic",
-          description: "Impossible d'exécuter le diagnostic complet",
-          variant: "destructive",
+        console.log("Attempt 1: Using admin-bypass function");
+        const { data, error } = await supabase.functions.invoke("admin-bypass", {
+          body: { action: "diagnostic" }
         });
+        
+        if (error) {
+          console.error("Admin bypass error:", error);
+          diagnosticResults.adminBypassError = error.message;
+        } else {
+          console.log("Admin bypass diagnostic results:", data);
+          diagnosticResults = { ...diagnosticResults, ...data };
+        }
+      } catch (err: any) {
+        console.error("Admin bypass exception:", err);
+        diagnosticResults.adminBypassException = err.message;
       }
+      
+      // Attempt 2: Direct database access check
+      try {
+        console.log("Attempt 2: Direct database access check");
+        const { data: moduleCount, error: moduleError } = await supabase
+          .from('modules')
+          .select('*', { count: 'exact', head: true });
+          
+        diagnosticResults.moduleAccessResult = !moduleError;
+        diagnosticResults.moduleCount = moduleCount;
+        
+        if (moduleError) {
+          console.error("Module access error:", moduleError);
+          diagnosticResults.moduleAccessError = moduleError.message;
+        }
+      } catch (err: any) {
+        console.error("Module access exception:", err);
+        diagnosticResults.moduleAccessException = err.message;
+      }
+      
+      // Attempt 3: Check RPC function
+      try {
+        console.log("Attempt 3: Testing RPC function");
+        const { data: rpcData, error: rpcError } = await supabase
+          .rpc('create_default_modules');
+          
+        diagnosticResults.rpcAccessResult = !rpcError;
+        
+        if (rpcError) {
+          console.error("RPC error:", rpcError);
+          diagnosticResults.rpcError = rpcError.message;
+        } else {
+          console.log("RPC call successful");
+          diagnosticResults.rpcSuccess = true;
+        }
+      } catch (err: any) {
+        console.error("RPC exception:", err);
+        diagnosticResults.rpcException = err.message;
+      }
+      
+      // Get additional diagnostic data
+      if (diagnosticRole) {
+        try {
+          const roleData = await diagnosticRole();
+          if (roleData) {
+            diagnosticResults.roleData = roleData;
+          }
+        } catch (err) {
+          console.error("Role diagnostic error:", err);
+        }
+      }
+      
+      // Set the final diagnostic data
+      diagnosticResults.timestamp = new Date().toISOString();
+      diagnosticResults.user = {
+        email: user?.email,
+        id: user?.id,
+        role: role
+      };
+      diagnosticResults.forcedAdminMode = forcedAdminMode;
+      diagnosticResults.isSpecialAdmin = isSpecialAdmin;
+      
+      setDiagnosticData(diagnosticResults);
+      setIsDiagnosticOpen(true);
+      
+      toast({
+        title: "Diagnostic terminé",
+        description: "Le rapport de diagnostic est disponible.",
+      });
+    } catch (error) {
+      console.error("Diagnostic error:", error);
+      toast({
+        title: "Erreur de diagnostic",
+        description: "Impossible d'exécuter le diagnostic complet",
+        variant: "destructive",
+      });
+    } finally {
+      setDiagnosticRunning(false);
     }
-  }, [isKonointer, diagnosticRole, toast]);
+  }, [isKonointer, diagnosticRole, user, role, forcedAdminMode, isSpecialAdmin, toast]);
 
   // Initialize modules if needed
   const initializeAdminAccess = useCallback(async () => {
@@ -73,6 +159,11 @@ export const useAdminDashboard = () => {
     setIsInitializing(true);
     try {
       console.log("Attempting to initialize admin tables...");
+      
+      // Enable forced admin mode first if possible
+      if (isKonointer && !forcedAdminMode) {
+        enableForcedAdminMode();
+      }
       
       // Utiliser le service de module pour créer les modules par défaut
       const success = await createDefaultModules();
@@ -83,6 +174,8 @@ export const useAdminDashboard = () => {
           title: "Initialisation réussie",
           description: "Les modules par défaut ont été créés."
         });
+      } else {
+        throw new Error("L'initialisation a échoué sans erreur spécifique");
       }
     } catch (error: any) {
       console.error("Error during initialization:", error);
@@ -94,7 +187,7 @@ export const useAdminDashboard = () => {
     } finally {
       setIsInitializing(false);
     }
-  }, [user, isInitializing, toast, createDefaultModules]);
+  }, [user, isInitializing, toast, createDefaultModules, isKonointer, forcedAdminMode, enableForcedAdminMode]);
 
   // Auto-repair function on component mount
   useEffect(() => {
@@ -139,9 +232,12 @@ export const useAdminDashboard = () => {
     repairAdminRole();
   }, [isKonointer, role, user, refreshRole, forcedAdminMode, enableForcedAdminMode, toast]);
 
-  // Initialize tables on load
+  // Initialize tables on load but with more caution
   useEffect(() => {
-    if (user && (isSpecialAdmin || role === "super_admin" || forcedAdminMode)) {
+    const params = new URLSearchParams(window.location.search);
+    const shouldInitialize = params.get('initialize') === 'true';
+    
+    if (shouldInitialize && user && (isSpecialAdmin || role === "super_admin" || forcedAdminMode)) {
       initializeAdminAccess();
     }
   }, [user, role, isSpecialAdmin, forcedAdminMode, initializeAdminAccess]);
@@ -166,6 +262,7 @@ export const useAdminDashboard = () => {
     isDiagnosticOpen,
     setIsDiagnosticOpen,
     diagnosticData,
+    diagnosticRunning,
     handleEnableForcedAdminMode: enableForcedAdminMode,
     handleDisableForcedAdminMode: disableForcedAdminMode,
     runAdminDiagnostic,

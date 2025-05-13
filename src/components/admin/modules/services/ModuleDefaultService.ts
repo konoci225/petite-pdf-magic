@@ -18,13 +18,15 @@ export const useModuleDefaultService = () => {
         console.warn("Tentative de création de modules sans rôle approprié");
       }
 
-      // Utiliser la fonction RPC qui retourne void
+      // Appeler la fonction RPC sans essayer de définir le rôle PostgreSQL
       const { error } = await supabase.rpc('create_default_modules');
       
       if (error) {
         console.error("Erreur RPC:", error);
         throw error;
       }
+      
+      console.log("Appel RPC réussi pour la création des modules par défaut");
       
       // Vérifier que les modules ont été créés en effectuant une requête
       const { data: modules, error: checkError } = await supabase
@@ -36,6 +38,8 @@ export const useModuleDefaultService = () => {
         console.error("Erreur lors de la vérification des modules:", checkError);
         throw checkError;
       }
+      
+      console.log("Vérification des modules réussie:", modules);
       
       toast({
         title: "Succès",
