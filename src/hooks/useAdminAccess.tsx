@@ -1,45 +1,46 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/providers/AuthProvider";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 
-// Clé pour le mode admin forcé
-const FORCED_ADMIN_MODE_KEY = 'app_forced_admin_mode';
+// Import our new hooks
+import { useAccessState } from "@/hooks/admin/useAccessState";
+import { useForcedAdminMode } from "@/hooks/admin/useForcedAdminMode";
+import { useAccessVerification } from "@/hooks/admin/useAccessVerification";
+import { useAccessDebounce } from "@/hooks/admin/useAccessDebounce";
+import { useAdminRefresh } from "@/hooks/admin/useAdminRefresh";
 
 export const useAdminAccess = () => {
   const { user } = useAuth();
   const { role, refreshRole, isSpecialAdmin } = useUserRole();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
-  const [tablesAccessible, setTablesAccessible] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
-  const [lastCheckTime, setLastCheckTime] = useState(0);
-  const [isForcedMode, setIsForcedMode] = useState(() => 
-    localStorage.getItem(FORCED_ADMIN_MODE_KEY) === 'true'
+  
+  // Use our refactored hooks
+  const {
+    isLoading, setIsLoading,
+    tablesAccessible, setTablesAccessible,
+    retryCount, setRetryCount,
+    lastCheckTime, setLastCheckTime
+  } = useAccessState();
+  
+  const { isForcedMode } = useForcedAdminMode();
+  const { checkTablesAccess } = useAccessVerification(isSpecialAdmin, isForcedMode, role);
+  const { canCheckAgain } = useAccessDebounce(lastCheckTime);
+  
+  // Create the refresh functionality
+  const { forceRefreshPermissions } = useAdminRefresh(
+    canCheckAgain,
+    setIsLoading,
+    setLastCheckTime,
+    setRetryCount,
+    refreshRole,
+    isSpecialAdmin,
+    isForcedMode,
+    checkTablesAccess,
+    setTablesAccessible
   );
-
-  // Check for forced mode changes
-  useEffect(() => {
-    const checkForcedMode = () => {
-      const currentValue = localStorage.getItem(FORCED_ADMIN_MODE_KEY) === 'true';
-      if (currentValue !== isForcedMode) {
-        setIsForcedMode(currentValue);
-      }
-    };
-    
-    // Check on mount
-    checkForcedMode();
-    
-    // Set up event listener for storage changes
-    window.addEventListener('storage', checkForcedMode);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('storage', checkForcedMode);
-    };
-  }, [isForcedMode]);
 
   // L'utilisateur spécial ou en mode forcé a toujours accès aux tables administratives
   useEffect(() => {
@@ -47,93 +48,7 @@ export const useAdminAccess = () => {
       setTablesAccessible(true);
       setIsLoading(false);
     }
-  }, [isSpecialAdmin, isForcedMode, role]);
-
-  // Vérification simplifiée d'existence des tables
-  const checkTablesAccess = useCallback(async () => {
-    // L'utilisateur spécial ou en mode forcé a toujours accès
-    if (isSpecialAdmin || isForcedMode) {
-      return true;
-    }
-    
-    // L'utilisateur avec le rôle super_admin a accès
-    if (role === 'super_admin') {
-      try {
-        const { error } = await supabase
-          .from('modules')
-          .select('id')
-          .limit(1);
-          
-        return !error;
-      } catch {
-        return false;
-      }
-    }
-    
-    return false;
-  }, [isSpecialAdmin, isForcedMode, role]);
-
-  // Anti-rebond pour les contrôles fréquents
-  const canCheckAgain = useCallback(() => {
-    const now = Date.now();
-    return (now - lastCheckTime) > 2000; // 2 secondes minimum entre les vérifications
-  }, [lastCheckTime]);
-
-  // Forcer le rafraîchissement des permissions
-  const forceRefreshPermissions = useCallback(async () => {
-    if (!canCheckAgain()) {
-      toast({
-        title: "Veuillez patienter",
-        description: "Attendez quelques secondes avant de réessayer.",
-      });
-      return;
-    }
-    
-    setIsLoading(true);
-    setLastCheckTime(Date.now());
-    setRetryCount(prev => prev + 1);
-    
-    try {
-      // Toujours actualiser le rôle d'abord
-      await refreshRole();
-      
-      // Pour les utilisateurs spéciaux ou en mode forcé, accorder l'accès directement
-      if (isSpecialAdmin || isForcedMode) {
-        setTablesAccessible(true);
-        toast({
-          title: isForcedMode ? "Mode administrateur forcé" : "Mode administrateur spécial",
-          description: "Accès aux fonctionnalités administratives accordé.",
-        });
-        return;
-      }
-      
-      // Vérifier l'accès aux tables après actualisation du rôle
-      const hasAccess = await checkTablesAccess();
-      setTablesAccessible(hasAccess);
-      
-      if (hasAccess) {
-        toast({
-          title: "Accès restauré",
-          description: "L'accès aux données a été restauré avec succès.",
-        });
-      } else {
-        toast({
-          title: "Accès limité",
-          description: "L'accès aux données reste limité. Vérifiez votre rôle.",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      console.error("Erreur lors du rafraîchissement:", error);
-      toast({
-        title: "Erreur",
-        description: "Problème lors du rafraîchissement des permissions: " + error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [refreshRole, isSpecialAdmin, isForcedMode, checkTablesAccess, toast, canCheckAgain]);
+  }, [isSpecialAdmin, isForcedMode, role, setTablesAccessible, setIsLoading]);
 
   // Vérification initiale à l'accès au tableau de bord
   useEffect(() => {
@@ -166,7 +81,7 @@ export const useAdminAccess = () => {
     };
     
     checkAccess();
-  }, [user, isSpecialAdmin, isForcedMode, checkTablesAccess]);
+  }, [user, isSpecialAdmin, isForcedMode, checkTablesAccess, setIsLoading, setLastCheckTime, setTablesAccessible]);
 
   return {
     isLoading,
