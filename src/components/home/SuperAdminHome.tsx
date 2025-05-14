@@ -14,6 +14,14 @@ const SuperAdminHome = () => {
   const { stats, isLoading, error } = useReportData();
   const navigate = useNavigate();
 
+  // Prepare data for the admin sections
+  const adminStats = {
+    totalUsers: stats.totalUsers,
+    activeModules: stats.activeModules,
+    premiumModules: stats.premiumModules,
+    activeSubscriptions: stats.activeSubscriptions
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -26,13 +34,13 @@ const SuperAdminHome = () => {
         </Badge>
       </div>
 
-      <AdminStatisticsSection stats={stats} loading={isLoading} />
+      <AdminStatisticsSection stats={adminStats} loading={isLoading} />
       
-      <ModuleManagementSection stats={stats} loading={isLoading} />
+      <ModuleManagementSection stats={adminStats} loading={isLoading} />
       
-      <UserManagementSection stats={stats} loading={isLoading} />
+      <UserManagementSection stats={adminStats} loading={isLoading} />
       
-      <SubscriptionManagementSection stats={stats} loading={isLoading} />
+      <SubscriptionManagementSection stats={adminStats} loading={isLoading} />
 
       <AdminQuickActions />
     </div>

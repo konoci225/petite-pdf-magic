@@ -1,5 +1,3 @@
 
-import { useToast, toast } from "@/hooks/use-toast";
-
-// Fix: Export the hooks properly
-export { useToast, toast };
+// Re-export the hooks properly from the actual implementation
+export { useToast, toast } from "@/hooks/use-toast";

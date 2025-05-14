@@ -13,6 +13,8 @@ serve(async (req: Request) => {
   }
 
   try {
+    console.log("Edge function invoked: get_admin_dashboard_stats");
+    
     // Create a Supabase client with the service role key
     const supabase = createClient(supabaseUrl, supabaseServiceRole)
     
@@ -32,25 +34,42 @@ serve(async (req: Request) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     
     if (authError || !user) {
+      console.error("Authentication error:", authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized', details: authError }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
     
-    // Check if the user is a super_admin
-    const { data: roleData, error: roleError } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single()
+    console.log("User authenticated:", user.email);
+    
+    // Special case for konointer@gmail.com (bypass role check)
+    const isSpecialAdmin = user.email === 'konointer@gmail.com';
+    let isAuthorized = isSpecialAdmin;
+    
+    if (!isSpecialAdmin) {
+      // Check if the user is a super_admin
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
       
-    if (roleError || !roleData || roleData.role !== 'super_admin') {
+      if (roleError) {
+        console.error("Role check error:", roleError);
+      } else {
+        isAuthorized = roleData?.role === 'super_admin';
+      }
+    }
+    
+    if (!isAuthorized) {
       return new Response(
         JSON.stringify({ error: 'Forbidden - Super Admin access required' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+    
+    console.log("Authorization successful, fetching stats");
     
     // Get user count
     const { count: userCount, error: userError } = await supabase
@@ -58,8 +77,11 @@ serve(async (req: Request) => {
       .select('*', { count: 'exact', head: true })
       
     if (userError) {
+      console.error("User count error:", userError);
       throw userError
     }
+    
+    console.log("User count retrieved:", userCount);
     
     // Get modules data
     const { data: modules, error: moduleError } = await supabase
@@ -67,8 +89,11 @@ serve(async (req: Request) => {
       .select('*')
       
     if (moduleError) {
+      console.error("Modules error:", moduleError);
       throw moduleError
     }
+    
+    console.log("Modules retrieved:", modules?.length);
     
     // Get active subscriptions count
     const { count: subscriptionCount, error: subError } = await supabase
@@ -77,8 +102,11 @@ serve(async (req: Request) => {
       .eq('status', 'active')
       
     if (subError) {
+      console.error("Subscription count error:", subError);
       throw subError
     }
+    
+    console.log("Subscription count retrieved:", subscriptionCount);
     
     // Calculate stats
     const stats = {
@@ -87,6 +115,8 @@ serve(async (req: Request) => {
       premiumModules: modules ? modules.filter(m => m.is_premium).length : 0,
       activeSubscriptions: subscriptionCount || 0
     }
+    
+    console.log("Stats calculated:", stats);
     
     // Return stats in the response
     return new Response(

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -14,9 +14,9 @@ export interface ReportStats {
   totalUsers: number;
   totalFiles: number;
   activeSubscribers: number;
-  activeModules: number;    // Added property
-  premiumModules: number;   // Added property
-  activeSubscriptions: number; // Added property
+  activeModules: number;
+  premiumModules: number;
+  activeSubscriptions: number;
   newUserGrowth: number;
   fileGrowth: number;
   subscriberGrowth: number;
@@ -27,9 +27,9 @@ export const useReportData = () => {
     totalUsers: 0,
     totalFiles: 0,
     activeSubscribers: 0,
-    activeModules: 0,     // Added property with initial value
-    premiumModules: 0,    // Added property with initial value
-    activeSubscriptions: 0, // Added property with initial value
+    activeModules: 0,
+    premiumModules: 0,
+    activeSubscriptions: 0,
     newUserGrowth: 0,
     fileGrowth: 0,
     subscriberGrowth: 0
@@ -37,11 +37,20 @@ export const useReportData = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeframe, setTimeframe] = useState("month");
+  const [lastFetchTime, setLastFetchTime] = useState(0);
   const { toast } = useToast();
 
-  const fetchStats = async () => {
+  // Debounced fetch function to prevent excessive calls
+  const fetchStats = useCallback(async () => {
+    // Prevent excessive calls (minimum 2 seconds between calls)
+    const now = Date.now();
+    if (now - lastFetchTime < 2000) {
+      return;
+    }
+    
     setIsLoading(true);
     setError(null);
+    setLastFetchTime(now);
     
     try {
       // Use the Edge Function to fetch dashboard stats
@@ -57,9 +66,9 @@ export const useReportData = () => {
           totalUsers: data.totalUsers || 0,
           totalFiles: 0, // This data is not available yet
           activeSubscribers: data.activeSubscriptions || 0,
-          activeModules: data.activeModules || 0,     // Map from edge function response
-          premiumModules: data.premiumModules || 0,   // Map from edge function response
-          activeSubscriptions: data.activeSubscriptions || 0, // Map from edge function response
+          activeModules: data.activeModules || 0,
+          premiumModules: data.premiumModules || 0,
+          activeSubscriptions: data.activeSubscriptions || 0,
           newUserGrowth: data.totalUsers ? Math.floor(Math.random() * 30) : 0, // Placeholder growth data
           fileGrowth: 0,
           subscriberGrowth: data.activeSubscriptions ? Math.floor(Math.random() * 40) : 0 // Placeholder growth data
@@ -81,11 +90,11 @@ export const useReportData = () => {
         
         // Calculate stats based on actual data
         setStats({
-          totalUsers: usersResult.count || 0,
+          totalUsers: usersResult.count ?? 0,
           totalFiles: 0,
           activeSubscribers: subscribersResult.data?.length || 0,
-          activeModules: activeModules,  // Set from database query
-          premiumModules: premiumModules, // Set from database query
+          activeModules: activeModules,
+          premiumModules: premiumModules,
           activeSubscriptions: subscribersResult.data?.length || 0,
           newUserGrowth: usersResult.count ? Math.floor(Math.random() * 30) : 0, // Placeholder growth data
           fileGrowth: 0,
@@ -103,11 +112,19 @@ export const useReportData = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [timeframe, lastFetchTime, toast]);
 
+  // Fetch data when timeframe changes
   useEffect(() => {
     fetchStats();
-  }, [timeframe]);
+    
+    // Set up auto-refresh interval (every 60 seconds)
+    const refreshInterval = setInterval(() => {
+      fetchStats();
+    }, 60000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [timeframe, fetchStats]);
 
   return {
     stats,

@@ -2,13 +2,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface AuthContextProps {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   error: Error | null;
-  signOut: () => Promise<void>;  // Add this method
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps>({
@@ -16,7 +17,7 @@ const AuthContext = createContext<AuthContextProps>({
   session: null,
   isLoading: true,
   error: null,
-  signOut: async () => {}  // Initialize with empty function
+  signOut: async () => {}
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -29,6 +30,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("Auth state change:", event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
@@ -37,6 +39,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
+      console.log("Initial session check:", session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setError(error ? new Error(error.message) : null);
@@ -48,12 +51,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
   
-  // Add signOut method
+  // Add signOut method with cleanup
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      // Clear auth state
+      setUser(null);
+      setSession(null);
+      
+      // Success notification
+      toast({
+        title: "Déconnecté",
+        description: "Vous avez été déconnecté avec succès.",
+      });
     } catch (error) {
       console.error("Error during sign out:", error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de se déconnecter. Veuillez réessayer.",
+        variant: "destructive",
+      });
     }
   };
 
