@@ -38,25 +38,25 @@ export const useReportData = () => {
     setError(null);
     
     try {
-      // Appeler la fonction Edge pour récupérer les statistiques du tableau de bord
+      // Use the Edge Function to fetch dashboard stats
       const { data, error } = await supabase.functions.invoke('get_admin_dashboard_stats');
       
       if (error) {
-        console.error("Erreur lors de l'appel à la fonction Edge:", error);
+        console.error("Error calling Edge Function:", error);
         throw new Error(error.message);
       }
       
       if (data) {
         setStats({
           totalUsers: data.totalUsers || 0,
-          totalFiles: 0, // Ces données ne sont pas encore disponibles
+          totalFiles: 0, // This data is not available yet
           activeSubscribers: data.activeSubscriptions || 0,
-          newUserGrowth: data.totalUsers ? Math.floor(Math.random() * 30) : 0,
+          newUserGrowth: data.totalUsers ? Math.floor(Math.random() * 30) : 0, // Placeholder growth data
           fileGrowth: 0,
-          subscriberGrowth: data.activeSubscriptions ? Math.floor(Math.random() * 40) : 0
+          subscriberGrowth: data.activeSubscriptions ? Math.floor(Math.random() * 40) : 0 // Placeholder growth data
         });
       } else {
-        // Méthode alternative: récupérer les données directement des tables
+        // Fallback method: fetch data directly from tables
         const [usersResult, subscribersResult] = await Promise.all([
           supabase.from('user_roles').select('*', { count: 'exact' }),
           supabase.from('subscriptions').select('*').eq('status', 'active')
@@ -65,22 +65,22 @@ export const useReportData = () => {
         if (usersResult.error) throw usersResult.error;
         if (subscribersResult.error) throw subscribersResult.error;
         
-        // Calculer les statistiques basées sur les données réelles
+        // Calculate stats based on actual data
         setStats({
           totalUsers: usersResult.count || 0,
           totalFiles: 0,
           activeSubscribers: subscribersResult.data?.length || 0,
-          newUserGrowth: usersResult.count ? Math.floor(Math.random() * 30) : 0,
+          newUserGrowth: usersResult.count ? Math.floor(Math.random() * 30) : 0, // Placeholder growth data
           fileGrowth: 0,
-          subscriberGrowth: subscribersResult.data?.length ? Math.floor(Math.random() * 40) : 0
+          subscriberGrowth: subscribersResult.data?.length ? Math.floor(Math.random() * 40) : 0 // Placeholder growth data
         });
       }
     } catch (error: any) {
-      console.error("Erreur lors de la récupération des statistiques:", error);
-      setError(error.message || "Impossible de récupérer les statistiques");
+      console.error("Error fetching statistics:", error);
+      setError(error.message || "Could not fetch statistics");
       toast({
-        title: "Erreur",
-        description: "Impossible de récupérer les statistiques: " + error.message,
+        title: "Error",
+        description: "Could not fetch statistics: " + error.message,
         variant: "destructive",
       });
     } finally {

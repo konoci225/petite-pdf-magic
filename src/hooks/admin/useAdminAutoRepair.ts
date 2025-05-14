@@ -33,8 +33,8 @@ export const useAdminAutoRepair = (
         if (data?.success) {
           await refreshRole(true);
           toast({
-            title: "Rôle réparé",
-            description: "Le rôle d'administrateur a été attribué avec succès.",
+            title: "Role repaired",
+            description: "Admin role has been successfully assigned.",
           });
         } else if (error) {
           console.error("Auto-repair error:", error);
@@ -43,8 +43,8 @@ export const useAdminAutoRepair = (
             enableForcedAdminMode();
             
             toast({
-              title: "Mode forcé activé",
-              description: "Le mode administrateur forcé a été activé automatiquement.",
+              title: "Forced mode activated",
+              description: "Forced admin mode has been automatically activated.",
               variant: "destructive",
             });
           }
@@ -56,8 +56,8 @@ export const useAdminAutoRepair = (
           enableForcedAdminMode();
           
           toast({
-            title: "Mode forcé activé",
-            description: "Le mode administrateur forcé a été activé suite à une erreur.",
+            title: "Forced mode activated",
+            description: "Forced admin mode has been activated due to an error.",
             variant: "destructive",
           });
         }

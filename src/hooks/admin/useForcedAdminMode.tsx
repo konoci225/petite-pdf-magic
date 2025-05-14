@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 
-// Clé pour le mode admin forcé
+// Key for forced admin mode
 export const FORCED_ADMIN_MODE_KEY = 'app_forced_admin_mode';
 
 /**

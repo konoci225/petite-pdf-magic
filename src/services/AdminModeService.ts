@@ -22,8 +22,8 @@ export const useAdminModeService = (userEmail?: string | null) => {
       localStorage.setItem(FORCED_ADMIN_MODE_KEY, 'true');
       setForcedAdminMode(true);
       toast({
-        title: "Mode administration forcé activé",
-        description: "Contournement des vérifications de sécurité pour l'administrateur spécial.",
+        title: "Forced admin mode enabled",
+        description: "Security checks bypass for special admin.",
       });
       
       return true;
@@ -36,8 +36,8 @@ export const useAdminModeService = (userEmail?: string | null) => {
     localStorage.removeItem(FORCED_ADMIN_MODE_KEY);
     setForcedAdminMode(false);
     toast({
-      title: "Mode administration forcé désactivé",
-      description: "Retour au mode de vérification normal.",
+      title: "Forced admin mode disabled",
+      description: "Returning to normal verification mode.",
     });
   }, [toast]);
   

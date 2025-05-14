@@ -2,16 +2,17 @@
 import { useCallback } from "react";
 
 /**
- * Hook that provides debounce functionality for access checks
+ * Hook for debouncing access verification checks
+ * to prevent too many API calls in short succession
  */
 export const useAccessDebounce = (lastCheckTime: number) => {
-  // Anti-rebond pour les contrôles fréquents
+  const DEBOUNCE_TIME = 2000; // 2 seconds between checks
+  
+  // Check if enough time has passed since the last verification
   const canCheckAgain = useCallback(() => {
     const now = Date.now();
-    return (now - lastCheckTime) > 2000; // 2 secondes minimum entre les vérifications
+    return (now - lastCheckTime) > DEBOUNCE_TIME;
   }, [lastCheckTime]);
-
-  return {
-    canCheckAgain
-  };
+  
+  return { canCheckAgain };
 };

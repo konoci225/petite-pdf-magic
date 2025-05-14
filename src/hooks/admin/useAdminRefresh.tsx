@@ -18,12 +18,12 @@ export const useAdminRefresh = (
 ) => {
   const { toast } = useToast();
 
-  // Forcer le rafraîchissement des permissions
+  // Force permissions refresh
   const forceRefreshPermissions = useCallback(async () => {
     if (!canCheckAgain()) {
       toast({
-        title: "Veuillez patienter",
-        description: "Attendez quelques secondes avant de réessayer.",
+        title: "Please wait",
+        description: "Wait a few seconds before trying again.",
       });
       return;
     }
@@ -33,40 +33,40 @@ export const useAdminRefresh = (
     setRetryCount(prev => prev + 1);
     
     try {
-      // Toujours actualiser le rôle d'abord
+      // Always refresh role first
       await refreshRole();
       
-      // Pour les utilisateurs spéciaux ou en mode forcé, accorder l'accès directement
+      // For special users or forced mode, grant access directly
       if (isSpecialAdmin || isForcedMode) {
         setTablesAccessible(true);
         toast({
-          title: isForcedMode ? "Mode administrateur forcé" : "Mode administrateur spécial",
-          description: "Accès aux fonctionnalités administratives accordé.",
+          title: isForcedMode ? "Forced admin mode" : "Special admin mode",
+          description: "Access to admin features granted.",
         });
         return;
       }
       
-      // Vérifier l'accès aux tables après actualisation du rôle
+      // Check table access after role refresh
       const hasAccess = await checkTablesAccess();
       setTablesAccessible(hasAccess);
       
       if (hasAccess) {
         toast({
-          title: "Accès restauré",
-          description: "L'accès aux données a été restauré avec succès.",
+          title: "Access restored",
+          description: "Data access has been successfully restored.",
         });
       } else {
         toast({
-          title: "Accès limité",
-          description: "L'accès aux données reste limité. Vérifiez votre rôle.",
+          title: "Limited access",
+          description: "Data access remains limited. Check your role.",
           variant: "destructive",
         });
       }
     } catch (error: any) {
-      console.error("Erreur lors du rafraîchissement:", error);
+      console.error("Error during refresh:", error);
       toast({
-        title: "Erreur",
-        description: "Problème lors du rafraîchissement des permissions: " + error.message,
+        title: "Error",
+        description: "Problem during permissions refresh: " + error.message,
         variant: "destructive",
       });
     } finally {

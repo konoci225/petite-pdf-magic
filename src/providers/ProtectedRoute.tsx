@@ -21,9 +21,9 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
   const { toast } = useToast();
 
   useEffect(() => {
-    // Si l'utilisateur est connecté mais que nous n'avons pas de rôle, essayons de l'actualiser
+    // If user is logged in but we don't have a role, try to refresh it
     if (user && !role && !isLoading) {
-      console.log("Tentative d'actualisation du rôle manquant...");
+      console.log("Attempting to refresh missing role...");
       refreshRole();
     }
   }, [user, role, isLoading, refreshRole]);
@@ -38,7 +38,7 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     path: location.pathname
   });
 
-  // Afficher le loader pendant le chargement du rôle
+  // Show loader while role is loading
   if (isLoading) {
     return (
       <div className="h-screen flex items-center justify-center">
@@ -47,42 +47,42 @@ export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) 
     );
   }
 
-  // Si aucun utilisateur n'est connecté, rediriger vers la page d'authentification
+  // If no user is logged in, redirect to auth page
   if (!user || !session) {
     console.log("No user or session, redirecting to auth");
     return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
-  // Vérification des autorisations
+  // Permission check
   const hasPermission = role && allowedRoles 
     ? allowedRoles.includes(role) 
     : true;
   
-  // Cas spécial pour super_admin - ils devraient pouvoir accéder à tout
+  // Special case for super_admin - they should be able to access everything
   if (role === "super_admin") {
     console.log(`User ${user.email} is super_admin, access granted`);
     return <>{children}</>;
   }
 
-  // Vérifier si des rôles sont requis
+  // Check if any roles are required
   if (!allowedRoles || allowedRoles.length === 0) {
-    // Si aucun rôle spécifique n'est requis, autoriser l'accès
+    // If no specific role is required, allow access
     console.log("No specific role required, access granted");
     return <>{children}</>;
   }
   
-  // Vérification standard des rôles
+  // Standard role check
   if (hasPermission) {
     console.log(`User has required role: ${role}, access granted`);
     return <>{children}</>;
   }
   
-  // L'utilisateur n'a pas les permissions nécessaires
-  console.error(`Accès refusé: L'utilisateur a le rôle ${role}, mais a besoin d'un de ces rôles: ${allowedRoles.join(', ')}`);
+  // User doesn't have necessary permissions
+  console.error(`Access denied: User has role ${role}, but needs one of these roles: ${allowedRoles.join(', ')}`);
   
   toast({
-    title: "Accès non autorisé",
-    description: `Vous avez le rôle ${role || 'non défini'}, mais vous avez besoin d'un de ces rôles: ${allowedRoles.join(', ')}`,
+    title: "Unauthorized access",
+    description: `You have role ${role || 'undefined'}, but you need one of these roles: ${allowedRoles.join(', ')}`,
     variant: "destructive"
   });
   

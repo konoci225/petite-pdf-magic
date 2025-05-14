@@ -2,7 +2,7 @@
 import { useState } from "react";
 
 /**
- * Hook that manages the state related to admin access
+ * Hook for managing admin access state
  */
 export const useAccessState = () => {
   const [isLoading, setIsLoading] = useState(true);
