@@ -14,6 +14,9 @@ export interface ReportStats {
   totalUsers: number;
   totalFiles: number;
   activeSubscribers: number;
+  activeModules: number;    // Added property
+  premiumModules: number;   // Added property
+  activeSubscriptions: number; // Added property
   newUserGrowth: number;
   fileGrowth: number;
   subscriberGrowth: number;
@@ -24,6 +27,9 @@ export const useReportData = () => {
     totalUsers: 0,
     totalFiles: 0,
     activeSubscribers: 0,
+    activeModules: 0,     // Added property with initial value
+    premiumModules: 0,    // Added property with initial value
+    activeSubscriptions: 0, // Added property with initial value
     newUserGrowth: 0,
     fileGrowth: 0,
     subscriberGrowth: 0
@@ -51,25 +57,36 @@ export const useReportData = () => {
           totalUsers: data.totalUsers || 0,
           totalFiles: 0, // This data is not available yet
           activeSubscribers: data.activeSubscriptions || 0,
+          activeModules: data.activeModules || 0,     // Map from edge function response
+          premiumModules: data.premiumModules || 0,   // Map from edge function response
+          activeSubscriptions: data.activeSubscriptions || 0, // Map from edge function response
           newUserGrowth: data.totalUsers ? Math.floor(Math.random() * 30) : 0, // Placeholder growth data
           fileGrowth: 0,
           subscriberGrowth: data.activeSubscriptions ? Math.floor(Math.random() * 40) : 0 // Placeholder growth data
         });
       } else {
         // Fallback method: fetch data directly from tables
-        const [usersResult, subscribersResult] = await Promise.all([
+        const [usersResult, modulesResult, subscribersResult] = await Promise.all([
           supabase.from('user_roles').select('*', { count: 'exact' }),
+          supabase.from('modules').select('*'),
           supabase.from('subscriptions').select('*').eq('status', 'active')
         ]);
         
         if (usersResult.error) throw usersResult.error;
+        if (modulesResult.error) throw modulesResult.error;
         if (subscribersResult.error) throw subscribersResult.error;
+        
+        const activeModules = modulesResult.data?.filter(m => m.is_active)?.length || 0;
+        const premiumModules = modulesResult.data?.filter(m => m.is_premium)?.length || 0;
         
         // Calculate stats based on actual data
         setStats({
           totalUsers: usersResult.count || 0,
           totalFiles: 0,
           activeSubscribers: subscribersResult.data?.length || 0,
+          activeModules: activeModules,  // Set from database query
+          premiumModules: premiumModules, // Set from database query
+          activeSubscriptions: subscribersResult.data?.length || 0,
           newUserGrowth: usersResult.count ? Math.floor(Math.random() * 30) : 0, // Placeholder growth data
           fileGrowth: 0,
           subscriberGrowth: subscribersResult.data?.length ? Math.floor(Math.random() * 40) : 0 // Placeholder growth data
